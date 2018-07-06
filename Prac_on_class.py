@@ -28,3 +28,4 @@ Jane = Student('Jane', 90)
 KangKang = Student('KangKang', 90)  # 说明每当创建一个实例并不会执行初始化语句 count = 0，仅在首次执行，但__init__()函数
                                     # 每创建一个实例都会执行
 print(Student.count)
+
