@@ -1,4 +1,7 @@
 # The scripts in A Bite of Python
+import numpy as np
+import copy
+
 # Simple example of list
 shopList = ['apple', 'mango', 'carrot', 'banana']
 
@@ -59,3 +62,84 @@ for item in shopList:
     print(item, end=' ')
 
 print('Items 1 to 3 in the shopping list:', shopList[0:3])
+
+# assignment, shallow copy, deep copy for compound objects like list
+menu = ['rice', 'meat', 'chicken', 'sausage', ['cola', 'tea']]
+print('\nOriginal menu:', menu)
+print('Copying menu to copy_menu by assignment......')
+copy_menu = menu
+print('Copying menu to copy_menu_sw by doing a full slice or method copy()......')
+copy_menu_sw = menu[:]      # shallow copy or use copy_menu_slice = menu.copy()
+print('Copying menu to copy_menu_dp by deepcopy()......')
+copy_menu_dp = copy.deepcopy(menu)
+print('\nDeleting meat from original menu......')
+del menu[1]
+
+print('menu:', menu)
+print('copy_menu:', copy_menu)
+print('copy_menu_sw:', copy_menu_sw)
+print('copy_menu_dp', copy_menu_dp)
+
+print('\nAdding coffee to drinks of copy_menu_sw......')
+copy_menu_sw[4].append('coffee')
+print('menu:', menu)
+print('copy_menu:', copy_menu)
+print('copy_menu_sw:', copy_menu_sw)
+print('copy_menu_dp', copy_menu_dp)
+
+print('\nAdding milk to drinks of copy_menu_dp......')
+copy_menu_dp[4].append('milk')
+print('menu:', menu)
+print('copy_menu:', copy_menu)
+print('copy_menu_sw:', copy_menu_sw)
+print('copy_menu_dp', copy_menu_dp)
+
+# Summary of the copy of compound objects (like list, tuple not simple integers or floats): little tricky.
+# Assignment copy just creating a pointer to the original object
+# Shallow copy by full slice or copy() method: Creating new object but inserting reference into it to the
+# objects found in the original objects. That is to say that operation like deleting or appending elements
+# is independent between the copy and original but operations on the elements existing in both objects will
+# be reflected on each other.
+# Deep copy using copy.deepcopy() method: Construction of new objects and recursively copy objects found in
+# the original objects. Real though copy.
+
+# class
+
+
+class SchoolMember:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+        print('Initialized SchoolMember:', self.name)
+
+    def tell(self):
+        """Tell info details."""
+        print('Name: %s Age: %d' % (self.name, self.age), end=' ')
+
+
+class Teacher(SchoolMember):
+    def __init__(self, name, age, salary):
+        SchoolMember.__init__(self, name, age)
+        self.salary = salary
+        print('Initialized Teacher:', self.name)
+
+    def tell(self):
+        SchoolMember.tell(self)
+        print('Salary:', self.salary)
+
+
+class Student(SchoolMember):
+    def __init__(self, name, age, marks):
+        SchoolMember.__init__(self, name, age)
+        self.marks = marks
+        print('Initialized Student:', self.name)
+
+    def tell(self):
+        SchoolMember.tell(self)
+        print('Marks:', self.marks)
+
+
+t1 = Teacher('Gao', 32, 40000)
+s1 = Student('Lee', 19, 90)
+t1.tell()
+s1.tell()
