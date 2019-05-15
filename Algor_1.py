@@ -1,6 +1,6 @@
 class Solution:
     def findNumberWithSum(self, array, test_sum):
-        if array == None or len(array) <= 0 or array[-1] + array[-2] < test_sum:
+        if (array is None) or (len(array) <= 0) or (array[-1] + array[-2] < test_sum):
             return []
         start = 0
         end = len(array) - 1
