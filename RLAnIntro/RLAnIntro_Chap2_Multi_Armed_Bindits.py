@@ -221,7 +221,7 @@ def figure2_6(runs=2000, time=1000):
 
     plt.show()
     plt.savefig('./images/figure2_6.png')
-    plt.close
+    plt.close()
 
 
 if __name__ == '__main__':
