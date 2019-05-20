@@ -82,7 +82,7 @@ def compute_state_value(in_place=False):
                     (next_i, next_j), reward = step([i, j], action)
                     value += Action_Prob * (reward + src[next_i, next_j])
                 new_state_values[i, j] = value
-            if np.sum(np.abs(new_state_values - state_values)) < 1e-1:
+            if np.sum(np.abs(new_state_values - state_values)) < 1e-4:
                 state_values = new_state_values.copy()
                 break
             state_values = new_state_values.copy()
