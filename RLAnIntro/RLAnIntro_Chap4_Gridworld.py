@@ -54,9 +54,9 @@ def draw_image(image):
 
     for (i, j), val in np.ndenumerate(image):
         idx = [j % 2, (j + 1) % 2][i % 2]
-        color = 'color'
+        color = 'white'
+        tb.add_cell(i, j, width, height, text=val, loc='center', facecolor=color)
 
-    tb.add_cell(i, j, width, height, text=val, loc='center', facecolor=color)
     for i, label in enumerate(range(len(image))):
         tb.add_cell(i, -1, width, height/2, text=label+1, loc='center',
                     edgecolor='none', facecolor='none')
@@ -82,11 +82,11 @@ def compute_state_value(in_place=False):
                     (next_i, next_j), reward = step([i, j], action)
                     value += Action_Prob * (reward + src[next_i, next_j])
                 new_state_values[i, j] = value
-            if np.sum(np.abs(new_state_values - state_values)) < 1e-4:
-                state_values = new_state_values.copy()
-                break
+        if np.sum(np.abs(new_state_values - state_values)) < 1e-4:
             state_values = new_state_values.copy()
-            iteration += 1
+            break
+        state_values = new_state_values.copy()
+        iteration += 1
 
     return state_values, iteration
 
@@ -94,7 +94,7 @@ def compute_state_value(in_place=False):
 def figure_4_1():
     value, sync_iteration = compute_state_value(in_place=False)
     _, asycn_iteration = compute_state_value(in_place=True)
-    draw_image(np.round(values, decimals=2))
+    draw_image(np.round(value, decimals=2))
     print('In-place: %d iterations' % asycn_iteration)
     print('Synchronous: %d iteration' % sync_iteration)
 
