@@ -53,7 +53,7 @@ def figure_4_3():
         for action in actions:
             action_returns.append(Head_Prob * state_value[state + action]
                                   + (1 - Head_Prob) * state_value[state - action])
-        # This line make the output resemble Sutton's book, which actually ignore the
+        # This line makes the output resemble Sutton's book, which actually ignore the
         # action of {0}. But the real optimal policy allows {0} follow. i.e.,
         # policy[state] = actions[np.argmax(action_returns)]
         policy[state] = actions[np.argmax(np.round(action_returns[1:], 5)) + 1]
