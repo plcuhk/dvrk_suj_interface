@@ -1,3 +1,17 @@
+#######################################################################
+# Copyright (C)                                                       #
+# 2016-2018 Shangtong Zhang(zhangshangtong.cpp@gmail.com)             #
+# 2016 Kenta Shimada(hyperkentakun@gmail.com)                         #
+# 2017 Nicky van Foreest(vanforeest@gmail.com)                        #
+# Permission given to modify the code as long as you keep this        #
+# declaration at the top                                              #
+#######################################################################
+#############################################################
+# Based on scripts of Shangtong Zhang, Tian Jun,            #
+# Artem Oboturov, Kenta Shimada                             #
+# Reinforcement Learning: An Introduction Chapter 5-Monte   #
+# Carlo Method - balckjack problem,                         #
+#############################################################
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -141,7 +155,7 @@ def monte_carlo_on_policy(episodes):
     for i in tqdm(range(0, episodes)):
         _, reward, player_trajectory = play(target_policy_player)
         for (usable_ace, player_sum, dealer_card), _ in player_trajectory:
-            player_sum -= 12  # ???
+            player_sum -= 12
             dealer_card -= 1
             if usable_ace:
                 states_usable_ace_count[player_sum, dealer_card] += 1
@@ -217,4 +231,34 @@ def monte_carlo_off_policy(episodes):
     return ordinary_sampling, weighted_sampling
 
 
+def figure_5_1():
+    states_usable_ace_1, states_no_usable_ace_1 = monte_carlo_on_policy(10000)
+    states_usable_ace_2, states_no_usable_ace_2 = monte_carlo_on_policy(500000)
 
+    states = [states_usable_ace_1,
+              states_usable_ace_2,
+              states_no_usable_ace_1,
+              states_no_usable_ace_2]
+
+    titles = ['Usable Ace, 10000 Episodes',
+              'Usable Ace, 500000 Episodes',
+              'No Usable Ace, 10000 Episodes',
+              'No Usable Ace, 500000 Episodes']
+
+    _, axes = plt.subplots(2, 2, figsize=(40, 30))
+    plt.subplots_adjust(wspace=0.1, hspace=0.2)
+    axes = axes.flatten()
+
+    for state, title, axis in zip(states, titles, axes):
+        fig = sns.heatmap(np.flipud(state), cmap='YlGnBu', ax=axis, xticklabels=range(1, 11),
+                          yticklabels=list(reversed(range(12, 22))))
+        fig.set_ylabel('player sum', fontsize=30)
+        fig.set_xlabel('dealer showing', fontsize=30)
+        fig.set_title(title, fontsize=30)
+
+    plt.savefig('./images/figure_5_1.png')
+    plt.close()
+
+
+if __name__ == '__main__':
+    figure_5_1()
