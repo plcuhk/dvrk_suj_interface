@@ -59,3 +59,26 @@ a_no3.class_foo('Hi')
 A.class_foo('Hi')
 a_no3.static_foo('Hi')
 A.static_foo('Hi')
+print('*** No3 END ***')
+
+
+# No4 ***
+# 实例化之后，每个实例单独拥有的变量
+class Test4:
+    num_of_instance = 0
+
+    def __init__(self, name):
+        self.name = name
+        Test4.num_of_instance += 1
+
+
+print(Test4.num_of_instance)
+test_4_1 = Test4('Name1')
+print(Test4.num_of_instance)
+test_4_2 = Test4('Name2')
+print(Test4.num_of_instance)
+test_4_2.num_of_instance = 100
+
+print(test_4_1.num_of_instance)
+print(test_4_2.num_of_instance)
+print(Test4.num_of_instance)
