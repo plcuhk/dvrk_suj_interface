@@ -63,7 +63,7 @@ print('*** No3 END ***')
 
 
 # No4 ***
-# 实例化之后，每个实例单独拥有的变量
+# 类变量， 实例变量的不同以及变化
 class Test4:
     num_of_instance = 0
 
@@ -82,3 +82,35 @@ test_4_2.num_of_instance = 100
 print(test_4_1.num_of_instance)
 print(test_4_2.num_of_instance)
 print(Test4.num_of_instance)
+
+
+class Test5:
+    Type = []
+    Year = 2000
+
+    def __init__(self):
+        self.name = []
+        self.age = 0
+        Test5.Year += 1
+
+
+test_5_1 = Test5()
+test_5_2 = Test5()
+
+test_5_1.Type.append('Exchange Student')
+test_5_1.Year = 2010
+test_5_1.name.append('Michael')
+test_5_1.age = 20
+print(test_5_2.Type, test_5_2.Year, Test5.Year)  # mutable([])和immutable(int)对象的区别
+print('*** No4 END ***')
+
+a = [1, 2, 3]
+b = {'a': 1, 'b': 2, 'c': 3}
+c = True
+d = 100
+e = 100.0
+print(type(a), type(b), type(c), type(d), type(e), type(test_5_1))
+
+for key_, value_ in b.items():
+    print(key_, value_)
+
