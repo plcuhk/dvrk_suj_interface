@@ -35,6 +35,7 @@ fun_no2(a_num_no2, a_str_no2)
 print(a_num_no2, a_str_no2)
 print('*** No2 END ***')
 
+
 # *** No3 ***
 def foo_no3(x):
     print('executing foo_no3(%s)' % x)
@@ -114,3 +115,9 @@ print(type(a), type(b), type(c), type(d), type(e), type(test_5_1))
 for key_, value_ in b.items():
     print(key_, value_)
 
+print('*** No5 END ***')
+name = (1, 2, 3)
+print('Name is %s' % (name,))
+
+fib = lambda n: n if n <= 2 else fib(n - 1) + fib(n - 2)
+print(fib(5))
