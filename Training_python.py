@@ -121,3 +121,20 @@ print('Name is %s' % (name,))
 
 fib = lambda n: n if n <= 2 else fib(n - 1) + fib(n - 2)
 print(fib(5))
+
+
+def memo(func):
+    cache = {}
+
+    def wrap(*args):
+        if args not in cache:
+            cache[args] = func(*args)
+        return cache[args]
+    return wrap
+
+
+@memo
+def fib_1(i):
+    if i < 2:
+        return 1
+    return fib_1(i - 1) + fib_1(i - 2)
