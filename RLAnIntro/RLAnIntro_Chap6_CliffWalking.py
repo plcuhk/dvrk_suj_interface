@@ -17,9 +17,9 @@ EPSILON = 0.1
 ALPHA = 0.5
 GAMMA = 1
 
-CLIFF = np.ones((1, 10, 2))
-CLIFF[:, :, 0] = np.arange(1, 11)
-CLIFF[:, :, 1] = np.ones((1, 10)) * 3
+CLIFF = np.ones((1, 9, 2))
+CLIFF[:, :, 0] = np.arange(1, 10)
+CLIFF[:, :, 1] = np.ones((1, 9)) * 3
 
 
 def step(state, action):
@@ -60,6 +60,7 @@ if __name__ == '__main__':
                 action = np.random.choice([action_ for action_, value_ in enumerate(q_value_) if value_ == max(q_value_)])
 
             state = step(state, action)
+            state = START if cliff_cleck(state) else state
             q_value[u, v, action] += ALPHA * (REWARD + GAMMA * max(q_value[state[0], state[1], :]) - q_value[u, v, action])
             rewards_sum_ += REWARD
 
