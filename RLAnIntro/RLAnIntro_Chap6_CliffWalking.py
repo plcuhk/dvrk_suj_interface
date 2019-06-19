@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 WORLD_HEIGHT = 4
 WORLD_WIDTH = 11
@@ -40,14 +39,12 @@ def cliff_check(state):
     return (u in CLIFF[:, :, 0]) and (v in CLIFF[:, :, 1])
 
 
-if __name__ == '__main__':
+def q_learning(episodes_limit):
     q_value = np.zeros((WORLD_WIDTH, WORLD_HEIGHT, len(ACTIONS)))
-    episodes_limit = 500
     rewards_sum = []
     episode = 1
 
     while episode <= episodes_limit:
-
         state = START
         rewards_sum_ = 0
 
@@ -57,19 +54,70 @@ if __name__ == '__main__':
                 action = np.random.choice(ACTIONS)
             else:
                 q_value_ = q_value[u, v, :]
-                action = np.random.choice([action_ for action_, value_ in enumerate(q_value_) if value_ == max(q_value_)])
+                action = np.random.choice([action_ for action_, value_ in enumerate(q_value_)
+                                           if value_ == max(q_value_)])
 
             state = step(state, action)
-            state = START if cliff_cleck(state) else state
-            q_value[u, v, action] += ALPHA * (REWARD + GAMMA * max(q_value[state[0], state[1], :]) - q_value[u, v, action])
+            state = START if cliff_check(state) else state
+            q_value[u, v, action] += ALPHA * (REWARD + GAMMA * max(q_value[state[0], state[1], :])
+                                              - q_value[u, v, action])
             rewards_sum_ += REWARD
 
         print(rewards_sum_)
         rewards_sum.append(rewards_sum_)
         episode += 1
+    return rewards_sum
 
-plt.plot(range(0, episodes_limit), rewards_sum)
-plt.xlabel('Episodes')
-plt.ylabel('Sum of rewards in an episode')
-plt.savefig('./images/figure_6_4.png')
-plt.close()
+
+def sarsa(episodes_limit):
+    q_value = np.zeros((WORLD_WIDTH, WORLD_HEIGHT, len(ACTIONS)))
+    rewards_sum = []
+    episode = 1
+
+    while episode <= episodes_limit:
+        state = START
+        rewards_sum_ = 0
+
+        while state != END:
+            u, v = state
+            if np.random.binomial(1, EPSILON) == 1:
+                action = np.random.choice(ACTIONS)
+            else:
+                q_value_ = q_value[u, v, :]
+                action = np.random.choice([action_ for action_, value_ in enumerate(q_value_)
+                                           if value_ == max(q_value_)])
+
+            next_state = step(state, action)
+            next_state = START if cliff_check(next_state) else next_state
+            if next_state != END:
+                u, v = next_state
+                if np.random.binomial(1, EPSILON) == 1:
+                    next_action = np.random.choice(ACTIONS)
+                else:
+                    q_value_ = q_value[u, v, :]
+                    next_action = np.random.choice([action_ for action_, value_ in enumerate(q_value_)
+                                                    if value_ == max(q_value_)])
+
+            q_value[state[0], state[1], action] += ALPHA * (REWARD + GAMMA * (q_value[next_state[0], next_state[1],
+                                                            next_action]) - q_value[state[0], state[1], action])
+            rewards_sum_ += REWARD
+            state = next_state
+
+        print(rewards_sum_)
+        rewards_sum.append(rewards_sum_)
+        episode += 1
+    return rewards_sum
+
+
+if __name__ == '__main__':
+    episodes = 500
+    reward_sum_1 = q_learning(episodes)
+    reward_sum_2 = sarsa(episodes)
+
+    plt.plot(range(0, episodes), reward_sum_1, label='Q_learning')
+    plt.plot(range(0, episodes), reward_sum_2, label='Sarsa')
+    plt.xlabel('Episodes')
+    plt.ylabel('Sum of rewards in an episode')
+    plt.legend()
+    plt.savefig('./images/figure_6_4.png')
+    plt.close()
