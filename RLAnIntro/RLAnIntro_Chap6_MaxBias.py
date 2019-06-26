@@ -59,8 +59,8 @@ def q_learning(q1, q2=None):
             else:
                 active_q = q2
                 target_q = q1
-            best_action = np.random.choice([action_ for action_, value_ in enumerate(target_q[next_state])
-                                            if value_ == np.max(target_q[next_state])])
+            best_action = np.random.choice([action_ for action_, value_ in enumerate(active_q[next_state])
+                                            if value_ == np.max(active_q[next_state])])
             target = target_q[next_state][best_action]
 
         active_q[state][action] += ALPHA * (reward + GAMMA * target - active_q[state][action])
@@ -69,7 +69,7 @@ def q_learning(q1, q2=None):
 
 def figure_6_7():
     episodes = 300
-    runs = 500
+    runs = 100
     left_counts_q = np.zeros((runs, episodes))
     left_counts_double_q = np.zeros((runs, episodes))
 
@@ -78,7 +78,7 @@ def figure_6_7():
         q1 = copy.deepcopy(INITIAL_Q)
         q2 = copy.deepcopy(INITIAL_Q)
         for ep in range(0, episodes):
-            left_counts_double_q[run, ep] = q_learning(q)
+            left_counts_q[run, ep] = q_learning(q)
             left_counts_double_q[run, ep] = q_learning(q1, q2)
 
     left_counts_q = left_counts_q.mean(axis=0)
