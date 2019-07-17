@@ -39,7 +39,7 @@ def get_suj_joint_pos(voltages, suj_type):
         joint_pos = copy.deepcopy(joint_offset_suj1)
     elif suj_type == 'SUJ2':
         joint_pos = copy.deepcopy(joint_offset_suj2)
-    else
+    else:
         joint_pos = copy.deepcopy(joint_offset_ecm)
     for joint_ in range(6):
         if joint_ == 0:
