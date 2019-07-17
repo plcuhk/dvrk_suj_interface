@@ -97,7 +97,7 @@ def lock_brakes():
 
 if __name__ == '__main__':
     reading = get_suj_joint_reading()
-    suj_joint = get_suj_joint_pos(reading)
+    suj_joint = get_suj_joint_pos(reading, 'SUJ1')
     suj_joint_deg = [180 / pi * i for i in suj_joint]
     suj_joint_deg[0] = suj_joint[0]
     print(suj_joint, '\n', suj_joint_deg)
