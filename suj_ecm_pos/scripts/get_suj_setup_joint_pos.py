@@ -41,6 +41,7 @@ def get_suj_joint_pos(voltages, suj_type):
         joint_pos = copy.deepcopy(joint_offset_suj2)
     else:
         joint_pos = copy.deepcopy(joint_offset_ecm)
+        
     for joint_ in range(6):
         if joint_ == 0:
             if suj_type == 'SUJ1' or suj_type == 'SUJ2':
@@ -55,7 +56,7 @@ def get_suj_joint_pos(voltages, suj_type):
                                 / 2 / 2.5 * 2 * pi
     joint_pos[3] *= -1
     if suj_type == 'ECM':
-        joint_pos[4] = joint_pos[0:4]
+        joint_pos = joint_pos[0:4]
     return joint_pos
 
 
