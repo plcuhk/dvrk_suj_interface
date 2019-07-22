@@ -10,5 +10,6 @@ def pos_subscriber():
     rospy.Subscriber('suj_ecm_joint_pos', suj_pos, callback)
 
     rospy.spin()
+
 if __name__ == '__main__':
     pos_subscriber()

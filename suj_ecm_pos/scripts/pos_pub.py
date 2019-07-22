@@ -9,12 +9,12 @@ def pos_publisher():
     r = rospy.Rate(10)
     msg = suj_pos()
     msg.name = 'suj1'
-    msg.joint_pos = get_suj_setup_joint_pos.get_data()
     while not rospy.is_shutdown():
+        msg.joint_pos = get_suj_setup_joint_pos.get_data()
         rospy.loginfo(msg)
         pub.publish(msg)
         r.sleep()
-
+        
 if __name__ == '__main__':
     try:
         pos_publisher()

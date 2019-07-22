@@ -14,7 +14,8 @@ joint_offset_ecm = [-0.141, -pi, -pi, -pi, -pi, -pi]
 
 def get_suj_joint_reading():
     readings = []
-    voltages = np.zeros((12, 1)).tolist()
+    #voltages = np.zeros((12, 1)).tolist()
+    voltages = [0 for i in range(12)]
     ser.write(b"AT+READALL\r\n")
     for i in range(13):
         readings.append(ser.read_until())
@@ -32,6 +33,7 @@ def get_suj_joint_reading():
         voltage = float(int(reading_[0:6], 16)) / float(full_range) * 2.5
         voltages[POT] = voltage
     # print(voltages)
+    # print(readings)
     return voltages
 
 def get_suj_joint_pos(voltages, suj_type):
@@ -41,7 +43,6 @@ def get_suj_joint_pos(voltages, suj_type):
         joint_pos = copy.deepcopy(joint_offset_suj2)
     else:
         joint_pos = copy.deepcopy(joint_offset_ecm)
-        
     for joint_ in range(6):
         if joint_ == 0:
             if suj_type == 'SUJ1' or suj_type == 'SUJ2':
@@ -101,5 +102,5 @@ def get_data():
     suj_joint = get_suj_joint_pos(reading, 'SUJ1')
     suj_joint_deg = [180 / pi * i for i in suj_joint]
     suj_joint_deg[0] = suj_joint[0]
-    ser.close()
+    # ser.close()
     return suj_joint
