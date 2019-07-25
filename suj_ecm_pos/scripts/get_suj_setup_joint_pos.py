@@ -104,7 +104,7 @@ def lock_brakes():
 
 def get_data():
     isValid = False
-    while !isValid:
+    while not(isValid):
         [reading, isValid] = get_suj_joint_reading()
     
     suj_joint = get_suj_joint_pos(reading, 'SUJ1')
