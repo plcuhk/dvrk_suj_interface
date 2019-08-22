@@ -10,8 +10,10 @@ ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False
 ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)                                        
 
-POT_Condition = [1, 1, 1, 1, 1, 1,
-                 0, 1, 1, 1, 1, 1]
+POT_Condition_suj1_ecm = [1, 1, 1, 1, 1, 1,
+                          0, 1, 1, 1, 1, 1]
+POT_Condition_suj2 = [1, 1, 1, 1, 1, 1,
+                      1, 1, 1, 1, 1, 1]
 full_range = int('FFFFFF', 16)
 pi = 3.14159265359
 joint_offset_suj1 = [-0.115, -pi, -pi, -pi, -pi, -pi]
@@ -35,9 +37,9 @@ def get_suj_joint_reading(serial_port):
         serial_port.reset_input_buffer()
         print('Failed to Get Port Address')
 
-    if address_num == 1:
+    if address_num == 3:
         arm = 'SUJ1'
-    elif address_num == 3:
+    elif address_num == 1:
         arm = 'SUJ2'
     else:
         arm = "ECM"
@@ -75,16 +77,23 @@ def get_suj_joint_reading(serial_port):
 def get_suj_joint_pos(voltages, suj_type):
     if suj_type == 'SUJ1':
         joint_pos = copy.deepcopy(joint_offset_suj1)
+        POT_Condition = POT_Condition_suj1_ecm
     elif suj_type == 'SUJ2':
         joint_pos = copy.deepcopy(joint_offset_suj2)
+        POT_Condition = POT_Condition_suj2
     else:
         joint_pos = copy.deepcopy(joint_offset_ecm)
+        POT_Condition = POT_Condition_suj1_ecm
+
     for joint_ in range(6):
         if joint_ == 0:
-            if suj_type == 'SUJ1' or suj_type == 'SUJ2':
+            if suj_type == 'SUJ1':
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 \
-                                    * (0.460422 if suj_type == 'SUJ1' else 0.462567)
+                                    + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
+            elif suj_type == 'SUJ2':
+                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
+                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567              
+                
             else:
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
                                     + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
