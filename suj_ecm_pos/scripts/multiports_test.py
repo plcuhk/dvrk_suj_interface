@@ -189,5 +189,6 @@ def get_data():
     return suj1_joint_deg, suj2_joint_deg, ecm_joint_deg
 if __name__ == '__main__':
     [data1, data2, data3] = get_data()
-    for data_ in [data1, data2, data3]:
+    print('SUJ1-SUJ2-ECM-Joint Position:')
+    for data_ in [data1, data2, data3]:     
         print(data_)
