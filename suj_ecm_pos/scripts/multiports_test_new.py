@@ -208,7 +208,7 @@ if __name__ == '__main__':
 
 	while True:
         	print('\n--->Chose Mode:') 
-        	action_mode('1: Release Single Joint \n 2: elease All Joints \n 3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
+        	action_mode = input('1: Release Single Joint \n 2: elease All Joints \n 3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
         	if action_mode == 1:
 	    		print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
 	    		print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
@@ -254,6 +254,4 @@ if __name__ == '__main__':
 	ser2.close()
 	ser3.close()
 	print('Lock Successfully') 		
-
-
 
