@@ -207,44 +207,44 @@ if __name__ == '__main__':
 		print(data_)
 
 	while True:
-        print('\n--->Chose Mode:') 
-        action_mode('1: Release Single Joint \n 2: elease All Joints \n 3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
-        if action_mode == 1:
-	    	print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
-	    	print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
-	    	user_input = input('Example Input: [1, 1] \n')
-	    	arm = user_input[0]
-	    	joint = user_input[1]
-    		if arm == 1:
-    			release_brakes_single(joint, armSerialportDic['SUJ1'])
-    		elif arm == 2:
-    			release_brakes_single(joint, armSerialportDic['SUJ2'])
-    		elif arm == 3:
-    			release_brakes_single(joint, armSerialportDic['ECM'])
-    		else:
-    			print('Error: Invalid ArmIndex')
+        	print('\n--->Chose Mode:') 
+        	action_mode('1: Release Single Joint \n 2: elease All Joints \n 3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
+        	if action_mode == 1:
+	    		print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
+	    		print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
+			user_input = input('Example Input: [1, 1] \n')
+			arm = user_input[0]
+			joint = user_input[1]
+			if arm == 1:
+				release_brakes_single(joint, armSerialportDic['SUJ1'])
+			elif arm == 2:
+				release_brakes_single(joint, armSerialportDic['SUJ2'])
+			elif arm == 3:
+				release_brakes_single(joint, armSerialportDic['ECM'])
+			else:
+				print('Error: Invalid ArmIndex')
 
-    	elif action_mode == 2:
-    		release_brakes(ser1)
-    		release_brakes(ser2)
-    		release_brakes(ser3)
+		elif action_mode == 2:
+			release_brakes(ser1)
+			release_brakes(ser2)
+			release_brakes(ser3)
 
-    	elif action_mode == 3:
-    		[data, armSerialportDic] = get_data()
-    		print('\n\nSUJ1 --> SUJ2 --> ECM')
-    		for data_ in data:
-        		print(data_) 
+		elif action_mode == 3:
+			[data, armSerialportDic] = get_data()
+			print('\n\nSUJ1 --> SUJ2 --> ECM')
+			for data_ in data:
+				print(data_) 
 
-        elif action_mode == 4:
-        	lock_brakes(ser1)
-        	lock_brakes(ser2)
-        	lock_brakes(ser3)   
+		elif action_mode == 4:
+			lock_brakes(ser1)
+			lock_brakes(ser2)
+			lock_brakes(ser3)   
 
-        elif action_mode == 5:
-            break
-        else:
-        	print('Error: Invalid Mode')
-        	break
+		elif action_mode == 5:
+		    break
+		else:
+			print('Error: Invalid Mode')
+			break
 
 	print('Auto Lock All Joints ......')
 	lock_brakes(ser1)
