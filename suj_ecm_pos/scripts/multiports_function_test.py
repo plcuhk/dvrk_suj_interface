@@ -15,7 +15,7 @@ POT_Condition_suj1_ecm = [1, 1, 1, 1, 1, 1,
 POT_Condition_suj2 = [1, 1, 1, 1, 1, 1,
                       1, 1, 1, 1, 1, 1]
 full_range = int('FFFFFF', 16)
-pi = 3.14159265359
+pi = np.pi
 joint_offset_suj1 = [-0.115, -pi, -pi, -pi, -pi, -pi]
 joint_offset_suj2 = [-0.109, -pi, -pi, -pi, -pi, -pi]
 joint_offset_ecm = [-0.141, -pi, -pi, -pi, -pi, -pi]
