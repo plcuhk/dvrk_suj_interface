@@ -251,7 +251,6 @@ if __name__ == '__main__':
             break
         else:
             print('Error: Invalid Mode')
-            break
 
     print('Auto Lock All Joints ......')
     lock_brakes(ser1)
