@@ -63,7 +63,7 @@ def get_suj_joint_reading(serial_port):
         voltages[POT] = voltage
     # It is noted that the readings can contain duplicate data from
     # the ADC due to the hardware reason. And the duplicate readings at the first and last position in the 12 readings.
-    # ***** Check methead 1 *****
+    # ***** Check method 1 *****
     # if readings[0].decode('utf-8')[-3] == readings[11].decode('utf-8').[-3] :
     #   valid_reading = False
     # ***** Check method 2 *****
@@ -223,12 +223,18 @@ if __name__ == '__main__':
             elif arm == 3:
                 release_brakes_single(joint, armSerialportDic['ECM'])
             else:
-                print('Error: Invalid ArmIndex')
+                print('Error: Invalid Arm Index')
 
         elif action_mode == 2:
-            release_brakes(ser1)
-            release_brakes(ser2)
-            release_brakes(ser3)
+            armIndex = input('Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
+            if armIndex == 1:
+                release_brakes(armSerialportDic['SUJ1'])
+            elif armIndex == 2:
+                release_brakes(armSerialportDic['SUJ2'])
+            elif armIndex == 3:
+                release_brakes(armSerialportDic['ECM'])
+            else:
+                print('Error: Invalid Arm Index')
 
         elif action_mode == 3:
             [data, armSerialportDic] = get_data()
