@@ -14,6 +14,13 @@ POT_Condition_suj1_ecm = [1, 1, 1, 1, 1, 1,
                           0, 1, 1, 1, 1, 1]
 POT_Condition_suj2 = [1, 1, 1, 1, 1, 1,
                       1, 1, 1, 1, 1, 1]
+# calibration coefficients
+suj1_calibration_positive = [1, 0.8333, 1, 1, 1, 1]
+suj1_calibration_negative = [1, 0.7143, 1, 1, 1, 1]
+suj2_calibration_positive = [1, 0.8333, 0.91, 1, 1, 0.8889]
+suj2_calibration_negative = [1, 0.7143, 0.91, 1, 1, 0.8889]
+ecm_calibration = [1, 0.7692, 1, 1]
+
 full_range = int('FFFFFF', 16)
 pi = np.pi
 joint_offset_suj1 = [-0.115, -pi, -pi, -pi, -pi, -pi]
@@ -184,6 +191,19 @@ def get_data():
     else:
         ecm_joint = get_suj_joint_pos(reading3, 'ECM')
         armSerialport['ECM'] = ser3
+
+    # get results calibrated
+    if suj1_joint[1] > 0:
+        suj1_joint = [a*b for a,b in zip(suj1_joint, suj1_calibration_positive)]
+    else:
+        suj1_joint = [a*b for a, b in zip(suj1_joint, suj1_calibration_negative)]
+
+    if suj2_joint > 0:
+        suj2_joint = [a*b for a,b in zip(suj2_joint, suj2_calibration_positive)]
+    else:
+        suj2_joint = [a*b for a,b in zip(suj2_joint, suj2_calibration_negative)]
+
+    ecm_joint = [a*b for a,b in zip(ecm_joint, ecm_calibration)]
 
     suj1_joint_deg = [180 / pi * i for i in suj1_joint]
     suj2_joint_deg = [180 / pi * i for i in suj2_joint]
