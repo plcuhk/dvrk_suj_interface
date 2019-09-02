@@ -1,0 +1,3 @@
+<launch>
+  <node name="dvrk_suj_publisher" pkg="dvrk_suj_interface" type="dvrk_suj_publisher.py" launch-prefix="sudo" />
+</launch>

@@ -11,7 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  roslaunch
 )
+roslaunch_add_file_check(launch)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -160,7 +162,8 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
  install(PROGRAMS
-   scripts/multiports_function_test.py
+   scripts/interface.py
+   scripts/dvrk_suj_publisher.py
    scripts/test.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
