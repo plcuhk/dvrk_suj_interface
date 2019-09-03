@@ -9,8 +9,6 @@ from std_msgs.msg import Header
 from dvrk_suj_interface.msg import Bool_List
 import ipdb
 
-#import ipdb;
-#ipdb.set_trace()
 ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
@@ -46,7 +44,23 @@ is_brake_release_list_SUJ2 = [False] * 6
 is_brake_release_list_ECM = [False] * 6
 
 
+Read_Lock = False
+Write_Lock = False
+
+# global dictionary variables
+armSerialportDic = {} # serial obj
+joint_pos_read_dict = {} # reading data
+joint_pos_deg_dict = {} # deg data
+pub_dict = {} # ros publisher obj
+is_brake_release_dict = {}
+
+is_brake_release_dict['SUJ1'] = is_brake_release_list_SUJ1
+is_brake_release_dict['SUJ2'] = is_brake_release_list_SUJ2
+is_brake_release_dict['ECM'] = is_brake_release_list_ECM
+
 def get_suj_joint_reading(serial_port):
+    #global Read_Lock
+    Read_Lock = True
     readings = []
     POT_sum = 0
     valid_reading = True
@@ -102,6 +116,9 @@ def get_suj_joint_reading(serial_port):
         valid_reading = False
     #print(arm + ' reading:')
     #print(readings)
+
+    # reset the Read Lock
+    Read_Lock = False
     return voltages, reading_list, valid_reading, arm
 
 
@@ -159,6 +176,8 @@ def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
 
 
 def release_brakes(ser):
+    global Write_Lock
+    Write_Lock = True
     ser.write(b"AT+FREEALL\r\n")
     respond = ser.read_until()
     if respond == b"OK\r\n":
@@ -166,9 +185,12 @@ def release_brakes(ser):
     else:
         ser.reset_input_buffer()
         print("All Brakes Release Failed.")
+    Write_Lock = False
 
 
 def release_brakes_single(joint_num, ser):
+    global Write_Lock
+    Write_Lock = True
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         print("Error: joint index out of range [1, 2,, 3, 4, 5, 6].")
         return
@@ -183,17 +205,25 @@ def release_brakes_single(joint_num, ser):
         ser.reset_input_buffer()
         print("Fail to release joint brake: %d" % joint_num)
 
+    Write_Lock = False
+
 def control_brakes(is_release_brake_list, ser):
+    is_finish = False
     if len(is_release_brake_list) == 6:
         for i in range(6):
             if is_release_brake_list[i]:
                 release_brakes_single(i+1, ser)
             else:
                 lock_brakes_single(i+1, ser)
+
     else:
         print('length  of control brake list should be 6')
+    is_finish =True
+    return is_finish
 
 def lock_brakes_single(joint_num, ser):
+    global Write_Lock
+    Write_Lock = True
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         print("Error: joint index out of range [1, 2,, 3, 4, 5, 6].")
         return
@@ -208,7 +238,11 @@ def lock_brakes_single(joint_num, ser):
         ser.reset_input_buffer()
         print("Fail to lock joint brake: %d" % joint_num)
 
+    Write_Lock = False
+
 def lock_brakes(ser):
+    global Write_Lock
+    Write_Lock = True
     ser.write(b"AT+LOCKALL\r\n")
     respond = ser.read_until()
     if respond == b"OK\r\n":
@@ -217,6 +251,7 @@ def lock_brakes(ser):
         ser.reset_input_buffer()
         print("All Brakes Lock Failed.")
 
+    Write_Lock = False
 
 # def get_data():
 #     suj1_joint = [0 for i in range(6)]
@@ -268,11 +303,13 @@ def lock_brakes(ser):
 
 
 def readSerial(ser):
+    global Write_Lock
     isValid = False
     while not(isValid):
         # v_reading1~3 are the voltage readings
         # d_reading1~3 are the original digital readings
-        [v_reading, d_reading, isValid, arm_str] = get_suj_joint_reading(ser)
+        if not Write_Lock:
+            [v_reading, d_reading, isValid, arm_str] = get_suj_joint_reading(ser)
 
     if arm_str == 'SUJ1':
         joint_pos_read, joint_pos_deg = dReading2degree(d_reading,\
@@ -296,9 +333,7 @@ def readSerial(ser):
     return joint_pos_read, joint_pos_deg, arm_str
 
 def readAll(ser1, ser2, ser3):
-    armSerialportDic = {}
-    joint_pos_read_dict = {}
-    joint_pos_deg_dict = {}
+
     joint_pos_read, joint_pos_deg, arm_str = readSerial(ser1)
     armSerialportDic[arm_str] = ser1
     joint_pos_read_dict[arm_str] = joint_pos_read
@@ -336,57 +371,70 @@ def publish_joint_states(joint_states_list, pub):
     pub.publish(msg)
 
 def control_brakes_SUJ1_cb(msg):
-    global is_brake_release_list_SUJ1
-    global ser1
+    global is_brake_release_dict
+    global armSerialportDic
+    global Read_Lock
+    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
     ipdb.set_trace()
     if len(bool_list) == 6:
         for i in range(6):
-            if(bool_list[i] == is_brake_release_list_SUJ1[i]):
+            if(bool_list[i] == is_brake_release_dict['SUJ1'][i]):
                 count = count +1
         if count!=0:
-            is_brake_release_list_SUJ1 = bool_list
-            control_brakes(is_brake_release_list_SUJ1, ser1)
+            is_brake_release_dict['SUJ1'] = bool_list
+            while(not is_finish):
+                if not Read_Lock:
+                    is_finish = control_brakes(is_brake_release_dict['SUJ1'], armSerialportDic['SUJ1'])
     
 def control_brakes_SUJ2_cb(msg):
     global is_brake_release_list_SUJ2
-    global ser2
+    global armSerialportDic
+    global Read_Lock
+    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
         for i in range(6):
-            if(bool_list[i] == is_brake_release_list_SUJ2[i]):
+            if(bool_list[i] == is_brake_release_dict['SUJ2'][i]):
                 count = count +1
         if count!=0:
-            is_brake_release_list_SUJ2 = bool_list
-            control_brakes(is_brake_release_list_SUJ2, ser2)
+            is_brake_release_dict['SUJ2'] = bool_list
+            while(not is_finish):
+                if not Read_Lock:
+                    is_finish = control_brakes(is_brake_release_dict['SUJ2'], armSerialportDic['SUJ2'])
     
 def control_brakes_ECM_cb(msg):
     global is_brake_release_list_ECM
-    global ser3
+    global armSerialportDic
+    global Read_Lock
+    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
         for i in range(6):
-            if(bool_list[i] == is_brake_release_list_ECM[i]):
+            if(bool_list[i] == is_brake_release_dict['ECM'][i]):
                 count = count +1
         if count!=0:
-            is_brake_release_list_ECM = bool_list
-            control_brakes(is_brake_release_list_ECM, ser3)
+            is_brake_release_dict['ECM'] = bool_list
+            while(not is_finish):
+                if not Read_Lock:
+                    is_finish = control_brakes(is_brake_release_dict['ECM'], armSerialportDic['ECM'])
 
 
     
 
 
 if __name__ == '__main__':
-    armSerialportDic = {}
-    joint_pos_read_dict = {}
-    joint_pos_deg_dict = {}
-    pub_dict = {}
-    print('Initial Reading:')
-    # serial connection and intial reading
+    global armSerialportDic
+    global joint_pos_read_dict
+    global joint_pos_deg_dict 
+    global pub_dict
+    global ser1, ser2, ser3
+
     armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
+    print('Initiate serial reading objects')
 
     rospy.init_node('dvrk_suj_publisher', anonymous=True, disable_signals=True)
     PSM1_suj_pub = rospy.Publisher('/dvrk/PSM1/SUJ/joint_states', JointState, queue_size=10)
