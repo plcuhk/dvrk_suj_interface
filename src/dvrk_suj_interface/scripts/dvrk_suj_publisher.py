@@ -468,6 +468,9 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         try:
             armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
+            # publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
+            # publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
+            # publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
             publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
             publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
             publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
