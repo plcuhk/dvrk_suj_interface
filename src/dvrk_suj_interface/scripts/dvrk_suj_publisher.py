@@ -60,7 +60,13 @@ is_brake_release_dict['ECM'] = is_brake_release_list_ECM
 
 def get_suj_joint_reading(serial_port):
     #global Read_Lock
+    global Write_Lock
+    global Read_Lock
+    # block the code when Read_Lock is true
+    while(Write_Lock):
+        pass
     Read_Lock = True
+
     readings = []
     POT_sum = 0
     valid_reading = True
@@ -119,6 +125,7 @@ def get_suj_joint_reading(serial_port):
 
     # reset the Read Lock
     Read_Lock = False
+
     return voltages, reading_list, valid_reading, arm
 
 
@@ -177,6 +184,10 @@ def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
 
 def release_brakes(ser):
     global Write_Lock
+    global Read_Lock
+    # block the code when Read_Lock is true
+    while(Read_Lock):
+        pass
     Write_Lock = True
     ser.write(b"AT+FREEALL\r\n")
     respond = ser.read_until()
@@ -190,7 +201,12 @@ def release_brakes(ser):
 
 def release_brakes_single(joint_num, ser):
     global Write_Lock
+    global Read_Lock
+    # block the code when Read_Lock is true
+    while(Read_Lock):
+        pass
     Write_Lock = True
+
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         print("Error: joint index out of range [1, 2,, 3, 4, 5, 6].")
         return
@@ -208,22 +224,28 @@ def release_brakes_single(joint_num, ser):
     Write_Lock = False
 
 def control_brakes(is_release_brake_list, ser):
-    is_finish = False
     if len(is_release_brake_list) == 6:
+        # for i in range(6):
+        #     if is_release_brake_list[i]:
+        #         release_brakes_single(i+1, ser)
+        #     else:
+        #         lock_brakes_single(i+1, ser)
+        lock_brakes(ser)
         for i in range(6):
             if is_release_brake_list[i]:
                 release_brakes_single(i+1, ser)
-            else:
-                lock_brakes_single(i+1, ser)
 
     else:
         print('length  of control brake list should be 6')
-    is_finish =True
-    return is_finish
 
 def lock_brakes_single(joint_num, ser):
     global Write_Lock
+    global Read_Lock
+    # block the code when Read_Lock is true
+    while(Read_Lock):
+        pass
     Write_Lock = True
+
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         print("Error: joint index out of range [1, 2,, 3, 4, 5, 6].")
         return
@@ -242,6 +264,10 @@ def lock_brakes_single(joint_num, ser):
 
 def lock_brakes(ser):
     global Write_Lock
+    global Read_Lock
+    # block the code when Read_Lock is true
+    while(Read_Lock):
+        pass
     Write_Lock = True
     ser.write(b"AT+LOCKALL\r\n")
     respond = ser.read_until()
@@ -303,12 +329,10 @@ def lock_brakes(ser):
 
 
 def readSerial(ser):
-    global Write_Lock
     isValid = False
     while not(isValid):
         # v_reading1~3 are the voltage readings
         # d_reading1~3 are the original digital readings
-        if not Write_Lock:
             [v_reading, d_reading, isValid, arm_str] = get_suj_joint_reading(ser)
 
     if arm_str == 'SUJ1':
@@ -373,26 +397,20 @@ def publish_joint_states(joint_states_list, pub):
 def control_brakes_SUJ1_cb(msg):
     global is_brake_release_dict
     global armSerialportDic
-    global Read_Lock
-    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
-    ipdb.set_trace()
+    #ipdb.set_trace()
     if len(bool_list) == 6:
         for i in range(6):
             if(bool_list[i] == is_brake_release_dict['SUJ1'][i]):
                 count = count +1
         if count!=0:
             is_brake_release_dict['SUJ1'] = bool_list
-            while(not is_finish):
-                if not Read_Lock:
-                    is_finish = control_brakes(is_brake_release_dict['SUJ1'], armSerialportDic['SUJ1'])
+            control_brakes(is_brake_release_dict['SUJ1'], armSerialportDic['SUJ1'])
     
 def control_brakes_SUJ2_cb(msg):
     global is_brake_release_list_SUJ2
     global armSerialportDic
-    global Read_Lock
-    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
@@ -401,15 +419,11 @@ def control_brakes_SUJ2_cb(msg):
                 count = count +1
         if count!=0:
             is_brake_release_dict['SUJ2'] = bool_list
-            while(not is_finish):
-                if not Read_Lock:
-                    is_finish = control_brakes(is_brake_release_dict['SUJ2'], armSerialportDic['SUJ2'])
+            control_brakes(is_brake_release_dict['SUJ2'], armSerialportDic['SUJ2'])
     
 def control_brakes_ECM_cb(msg):
     global is_brake_release_list_ECM
     global armSerialportDic
-    global Read_Lock
-    is_finish = False
     count = 0
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
@@ -418,9 +432,7 @@ def control_brakes_ECM_cb(msg):
                 count = count +1
         if count!=0:
             is_brake_release_dict['ECM'] = bool_list
-            while(not is_finish):
-                if not Read_Lock:
-                    is_finish = control_brakes(is_brake_release_dict['ECM'], armSerialportDic['ECM'])
+            control_brakes(is_brake_release_dict['ECM'], armSerialportDic['ECM'])
 
 
     
@@ -431,7 +443,9 @@ if __name__ == '__main__':
     global joint_pos_read_dict
     global joint_pos_deg_dict 
     global pub_dict
-    global ser1, ser2, ser3
+    global ser1
+    global ser2
+    global ser3
 
     armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
     print('Initiate serial reading objects')
@@ -520,11 +534,15 @@ if __name__ == '__main__':
     #         break
 
     print('Auto Lock All Joints ......')
-    lock_brakes(ser1)
-    lock_brakes(ser2)
-    lock_brakes(ser3)
-    ser1.close()
-    ser2.close()
-    ser3.close()
+    global Read_Lock
+    global Write_Lock
+    Read_Lock = False
+    Write_Lock = False
+    lock_brakes(armSerialportDic['SUJ1'])
+    lock_brakes(armSerialportDic['SUJ2'])
+    lock_brakes(armSerialportDic['ECM'])
+    armSerialportDic['SUJ1'].close()
+    armSerialportDic['SUJ2'].close()
+    armSerialportDic['ECM'].close()
     print('Lock Successfully')
 
