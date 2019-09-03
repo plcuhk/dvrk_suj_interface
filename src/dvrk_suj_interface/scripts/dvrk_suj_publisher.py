@@ -28,14 +28,52 @@ full_range = int('FFFFFF', 16)
 # pi = np.pi
 
 # digital readings to degrees/meters
-reading_ratios_suj1 = [0.0, 1.642306388237421e-05, -180, -180, -180, -180]
-reading_ratios_suj2 = [0.0, -180, -180, -180, -180, -180]
-reading_ratios_ecm = [0.0, -180, -180, -180, -180, -180]
+reading_ratios_suj1 = [\
+   0.000679361324099e-04,\
+   -0.164230638823742e-04,\
+  -0.214518203432165e-04,\
+  -0.189414296841813e-04,\
+   0.219755939440219e-04,\
+   0.211373023725277e-04]
+reading_ratios_suj2 = [\
+   0.000679361324099e-04,\
+   0.165340384304039e-04,\
+   0.220967995699956e-04,\
+  -0.208857958910946e-04,\
+   0.218145311409726e-04,\
+   0.218406904823893e-04]
+reading_ratios_ecm = [\
+     0.000651841047138e-04,\
+   0.164230638823742e-04,\
+   0.213513675094910e-04,\
+  -0.213474375244873e-04,\
+                   0e-04,\
+                   0e-04]
 
 
-reading_offset_suj1 = [-0.115, -1.372810126705418e+02, -180, -180, -180, -180]
-reading_offset_suj2 = [-0.109, -180, -180, -180, -180, -180]
-reading_offset_ecm = [-0.141, -180, -180, -180, -180, -180]
+reading_offset_suj1 = [\
+  -0.000523031757488e+02,\
+  1.372810126705418e+02,\
+   1.789888576455963e+02,\
+   1.582054628502918e+02,\
+  -1.833489070263761e+02,\
+  -1.763324523097684e+02]
+
+reading_offset_suj2 = [\
+  -0.000523031757488e+02,\
+  -1.378325277425634e+02,\
+  -1.879577117810360e+02,\
+   1.738600017993397e+02,\
+  -1.812260716887768e+02,\
+  -1.816487480010929e+02]
+
+reading_offset_ecm =  [\
+  -0.000324192907571e+02,\
+  -1.372810126705418e+02,\
+  -1.827159798066593e+02,\
+   1.786303832519661e+02,\
+                   0e+02,\
+                   0e+02]
 
 
 # brake control unit
@@ -177,7 +215,7 @@ def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
 
             joint_pos_deg[joint_] = joint_pos_read[joint_] * ratio_list[joint_]\
                         + bias_list[joint_]
-
+    #ipdb.set_trace()
 
     return joint_pos_read, joint_pos_deg
 
@@ -329,6 +367,12 @@ def lock_brakes(ser):
 
 
 def readSerial(ser):
+    global reading_ratios_suj1
+    global reading_ratios_suj2
+    global reading_ratios_ecm  
+    global reading_offset_suj1  
+    global reading_offset_suj2 
+    global reading_offset_ecm  
     isValid = False
     while not(isValid):
         # v_reading1~3 are the voltage readings
@@ -471,9 +515,9 @@ if __name__ == '__main__':
             # publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
             # publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
             # publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
-            publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
-            publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
-            publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
+            publish_joint_states(joint_pos_deg_dict['SUJ1'],pub_dict['SUJ1'])
+            publish_joint_states(joint_pos_deg_dict['SUJ2'],pub_dict['SUJ2'])
+            publish_joint_states(joint_pos_deg_dict['ECM'],pub_dict['ECM'])
             rate.sleep()
         except KeyboardInterrupt:
             break
