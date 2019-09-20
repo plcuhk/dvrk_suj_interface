@@ -25,53 +25,54 @@ POT_Condition_ecm = [1, 1, 1, 1, 1, 1,
                           0, 1, 1, 1, 1, 1]
 
 full_range = int('FFFFFF', 16)
-# pi = np.pi
+pi = np.pi
 
 # digital readings to degrees/meters
 reading_ratios_suj1 = [\
    0.000679361324099e-04,\
-   -0.164230638823742e-04,\
-  0.214518203432165e-04,\
-  -0.189414296841813e-04,\
-   0.219755939440219e-04,\
-   0.211373023725277e-04]
+   0.164475557136178e-04,\
+   0.218156049790293e-04,\
+  -0.216901591180325e-04,\
+   0.218097559143513e-04,\
+   0.209533505034868e-04]
 reading_ratios_suj2 = [\
    0.000679361324099e-04,\
-   0.165340384304039e-04,\
-   0.220967995699956e-04,\
-  -0.208857958910946e-04,\
-   0.218145311409726e-04,\
-   0.218406904823893e-04]
+   0.165601641304823e-04,\
+   0.219571142129651e-04,\
+  -0.209920380657358e-04,\
+   0.221362481103644e-04,\
+   0.218322230350838e-04]
 reading_ratios_ecm = [\
-     0.000651841047138e-04,\
-   0.164230638823742e-04,\
-   0.213513675094910e-04,\
-  -0.213474375244873e-04,\
+   0.000651841047138e-04,\
+   0.164475557136178e-04,\
+   0.212760655892334e-04,\
+  -0.213315053290246e-04,\
                    0e-04,\
                    0e-04]
 
 
 reading_offset_suj1 = [\
   -0.000523031757488e+02,\
-  1.372810126705418e+02,\
-   -1.789888576455963e+02,\
-   1.582054628502918e+02,\
-  -1.833489070263761e+02,\
-  -1.763324523097684e+02]
+  -1.371779503373699e+02,\
+  -1.799627805422682e+02,\
+   1.815830397319179e+02,\
+  -1.825077641185728e+02,\
+  -1.743117399183474e+02,\
+]
 
 reading_offset_suj2 = [\
   -0.000523031757488e+02,\
-  -1.378325277425634e+02,\
-  -1.879577117810360e+02,\
-   1.738600017993397e+02,\
-  -1.812260716887768e+02,\
-  -1.816487480010929e+02]
+  -1.378368230437714e+02,\
+  -1.881354442466350e+02,\
+  1.744835508514070e+02,\
+  -1.833311941228270e+02,\
+  -1.816169750077472e+02]
 
 reading_offset_ecm =  [\
   -0.000324192907571e+02,\
-  -1.372810126705418e+02,\
-  -1.827159798066593e+02,\
-   1.786303832519661e+02,\
+  -1.371779503373699e+02,\
+  -1.807891704964407e+02,\
+   1.783010819295235e+02,\
                    0e+02,\
                    0e+02]
 
@@ -215,6 +216,7 @@ def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
 
             joint_pos_deg[joint_] = joint_pos_read[joint_] * ratio_list[joint_]\
                         + bias_list[joint_]
+	    joint_pos_deg[joint_] = joint_pos_deg[joint_] * pi / 180;
     #ipdb.set_trace()
 
     return joint_pos_read, joint_pos_deg
@@ -495,9 +497,9 @@ if __name__ == '__main__':
     print('Initiate serial reading objects')
 
     rospy.init_node('dvrk_suj_publisher', anonymous=True, disable_signals=True)
-    PSM1_suj_pub = rospy.Publisher('/dvrk/PSM1/SUJ/joint_states', JointState, queue_size=10)
-    PSM2_suj_pub = rospy.Publisher('/dvrk/PSM2/SUJ/joint_states', JointState, queue_size=10)
-    ECM_suj_pub = rospy.Publisher('/dvrk/ECM/SUJ/joint_states', JointState, queue_size=10)
+    PSM1_suj_pub = rospy.Publisher('/dvrk/SUJ/PSM1/set_position_joint', JointState, queue_size=10)
+    PSM2_suj_pub = rospy.Publisher('/dvrk/SUJ/PSM2/set_position_joint', JointState, queue_size=10)
+    ECM_suj_pub = rospy.Publisher('/dvrk/SUJ/ECM/set_position_joint', JointState, queue_size=10)
 
     rospy.Subscriber("/dvrk/PSM1/SUJ/is_brake_release_list", Bool_List, control_brakes_SUJ1_cb)
     rospy.Subscriber("/dvrk/PSM2/SUJ/is_brake_release_list", Bool_List, control_brakes_SUJ2_cb)
@@ -512,9 +514,9 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         try:
             armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
-            # publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
-            # publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
-            # publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
+            #publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
+            #publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
+            #publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
             publish_joint_states(joint_pos_deg_dict['SUJ1'],pub_dict['SUJ1'])
             publish_joint_states(joint_pos_deg_dict['SUJ2'],pub_dict['SUJ2'])
             publish_joint_states(joint_pos_deg_dict['ECM'],pub_dict['ECM'])
