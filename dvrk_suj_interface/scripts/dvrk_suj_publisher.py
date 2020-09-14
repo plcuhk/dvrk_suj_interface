@@ -7,7 +7,6 @@ import rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 from dvrk_suj_interface.msg import Bool_List
-import ipdb
 
 ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
@@ -217,7 +216,6 @@ def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
             joint_pos_deg[joint_] = joint_pos_read[joint_] * ratio_list[joint_]\
                         + bias_list[joint_]
 	    joint_pos_deg[joint_] = joint_pos_deg[joint_] * pi / 180;
-    #ipdb.set_trace()
 
     return joint_pos_read, joint_pos_deg
 
@@ -319,54 +317,6 @@ def lock_brakes(ser):
 
     Write_Lock = False
 
-# def get_data():
-#     suj1_joint = [0 for i in range(6)]
-#     suj2_joint = [0 for i in range(6)]
-#     ecm_joint = [0 for i in range(4)]
-#     allIsValid = False
-#     while not(allIsValid):
-#         # v_reading1~3 are the voltage readings
-#         # d_reading1~3 are the original digital readings
-#         [v_reading1, d_reading1, isValid1, arm1] = get_suj_joint_reading(ser1)
-#         [v_reading2, d_reading2, isValid2, arm2] = get_suj_joint_reading(ser2)
-#         [v_reading3, d_reading3, isValid3, arm3] = get_suj_joint_reading(ser3)
-#         allIsValid = (isValid1 and isValid2 and isValid3)
-
-#     armSerialport = {}
-#     if arm1 == 'SUJ1':
-#         suj1_joint = get_suj_joint_pos(v_reading1, 'SUJ1')
-#         armSerialport['SUJ1'] = ser1
-#     elif arm1 == 'SUJ2':
-#         suj2_joint = get_suj_joint_pos(v_reading1, 'SUJ2')
-#         armSerialport['SUJ2'] = ser1
-#     else:
-#         ecm_joint = get_suj_joint_pos(v_reading1, 'ECM')
-#         armSerialport['ECM'] = ser1
-
-#     if arm2 == 'SUJ1':
-#         suj1_joint = get_suj_joint_pos(v_reading2, 'SUJ1')
-#         armSerialport['SUJ1'] = ser2
-#     elif arm2 == 'SUJ2':
-#         suj2_joint = get_suj_joint_pos(v_reading2, 'SUJ2')
-#         armSerialport['SUJ2'] = ser2
-#     else:
-#         ecm_joint = get_suj_joint_pos(v_reading2, 'ECM')
-#         armSerialport['ECM'] = ser2
-
-
-#     suj1_joint_deg = [180 / pi * i for i in suj1_joint]
-#     suj2_joint_deg = [180 / pi * i for i in suj2_joint]
-#     ecm_joint_deg = [180 / pi * i for i in ecm_joint]
-#     suj1_joint_deg[0] = suj1_joint[0]
-#     suj2_joint_deg[0] = suj2_joint[0]
-#     ecm_joint_deg[0] = ecm_joint[0]
-
-#     # ser1.close()
-#     # ser2.close()
-#     # ser3.close()
-#     # return [suj1_joint, suj2_joint, ecm_joint], armSerialport
-#     return [suj1_joint_deg, suj2_joint_deg, ecm_joint_deg], armSerialport
-
 
 def readSerial(ser):
     global reading_ratios_suj1
@@ -445,7 +395,6 @@ def control_brakes_SUJ1_cb(msg):
     global armSerialportDic
     count = 0
     bool_list = msg.isBrakeList
-    #ipdb.set_trace()
     if len(bool_list) == 6:
         for i in range(6):
             if(bool_list[i] == is_brake_release_dict['SUJ1'][i]):
@@ -485,106 +434,51 @@ def control_brakes_ECM_cb(msg):
 
 
 if __name__ == '__main__':
-    global armSerialportDic
-    global joint_pos_read_dict
-    global joint_pos_deg_dict 
-    global pub_dict
-    global ser1
-    global ser2
-    global ser3
+    # global armSerialportDic
+    # global joint_pos_read_dict
+    # global joint_pos_deg_dict 
+    # global pub_dict
+    # global ser1
+    # global ser2
+    # global ser3
 
     armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
-    print('Initiate serial reading objects')
+    #print('Initiate serial reading objects')
 
     rospy.init_node('dvrk_suj_publisher', anonymous=True, disable_signals=True)
     PSM1_suj_pub = rospy.Publisher('/dvrk/SUJ/PSM1/set_position_joint', JointState, queue_size=10)
     PSM2_suj_pub = rospy.Publisher('/dvrk/SUJ/PSM2/set_position_joint', JointState, queue_size=10)
     ECM_suj_pub = rospy.Publisher('/dvrk/SUJ/ECM/set_position_joint', JointState, queue_size=10)
 
-    rospy.Subscriber("/dvrk/PSM1/SUJ/is_brake_release_list", Bool_List, control_brakes_SUJ1_cb)
-    rospy.Subscriber("/dvrk/PSM2/SUJ/is_brake_release_list", Bool_List, control_brakes_SUJ2_cb)
-    rospy.Subscriber("/dvrk/ECM/SUJ/is_brake_release_list", Bool_List, control_brakes_ECM_cb)
+    rospy.Subscriber("/dvrk/SUJ/PSM1/brake_control", Bool_List, control_brakes_SUJ1_cb)
+    rospy.Subscriber("/dvrk/SUJ/PSM2/brake_control", Bool_List, control_brakes_SUJ2_cb)
+    rospy.Subscriber("/dvrk/SUJ/ECM/brake_control", Bool_List, control_brakes_ECM_cb)
 
     pub_dict['SUJ1'] = PSM1_suj_pub
     pub_dict['SUJ2'] = PSM2_suj_pub
     pub_dict['ECM'] = ECM_suj_pub
 
     rate =  rospy.Rate(100)
-
+    is_success_print =True
     while not rospy.is_shutdown():
         try:
             armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
-            #publish_joint_states(joint_pos_read_dict['SUJ1'],pub_dict['SUJ1'])
-            #publish_joint_states(joint_pos_read_dict['SUJ2'],pub_dict['SUJ2'])
-            #publish_joint_states(joint_pos_read_dict['ECM'],pub_dict['ECM'])
             publish_joint_states(joint_pos_deg_dict['SUJ1'],pub_dict['SUJ1'])
             publish_joint_states(joint_pos_deg_dict['SUJ2'],pub_dict['SUJ2'])
             publish_joint_states(joint_pos_deg_dict['ECM'],pub_dict['ECM'])
             rate.sleep()
+            if is_success_print:
+                print("dvrk_suj_publisher is running................")
+                print("close the program by ctrl+c")
+                is_success_print = False
+
         except KeyboardInterrupt:
             break
 
 
-    # while True:
-    #     print('\n--->Choose Mode:')
-    #     action_mode = input('1: Release Single Joint \n2: elease All Joints \
-    #                         \n3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
-    #     if action_mode == 1:
-    #         print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
-    #         print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
-    #         user_input = input('Example Input: [1, 1] \n')
-    #         arm = user_input[0]
-    #         joint = user_input[1]
-    #         if arm == 1:
-    #             release_brakes_single(joint, armSerialportDic['SUJ1'])
-    #         elif arm == 2:
-    #             release_brakes_single(joint, armSerialportDic['SUJ2'])
-    #         elif arm == 3:
-    #             release_brakes_single(joint, armSerialportDic['ECM'])
-    #         else:
-    #             print('Error: Invalid Arm Index')
-
-    #     elif action_mode == 2:
-    #         armIndex = input('Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
-    #         if armIndex == 1:
-    #             release_brakes(armSerialportDic['SUJ1'])
-    #         elif armIndex == 2:
-    #             release_brakes(armSerialportDic['SUJ2'])
-    #         elif armIndex == 3:
-    #             release_brakes(armSerialportDic['ECM'])
-    #         else:
-    #             print('Error: Invalid Arm Index')
-
-    #     elif action_mode == 3:
-    #         armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
-
-    #     elif action_mode == 4:
-    #         lock_brakes(ser1)
-    #         lock_brakes(ser2)
-    #         lock_brakes(ser3)
-
-    #     elif action_mode == 5:
-    #         break
-    #     elif action_mode == 6:
-    #         arm_index = input('input arm index:')
-    #         control_list = input('input is_brake_control_list')
-    #         bool_list = [bool(i) for i in control_list]
-    #         print(bool_list)
-    #         if arm_index == 1:
-    #             control_brakes(bool_list, armSerialportDic['SUJ1'])
-    #         elif arm_index == 2:
-    #             control_brakes(bool_list, armSerialportDic['SUJ2'])
-    #         elif arm_index == 3:
-    #             control_brakes(bool_list, armSerialportDic['ECM'])
-    #         else:
-    #             print('Error: Invalid Arm Index')
-    #     else:
-    #         print('Error: Invalid Mode')
-    #         break
-
     print('Auto Lock All Joints ......')
-    global Read_Lock
-    global Write_Lock
+    # global Read_Lock
+    # global Write_Lock
     Read_Lock = False
     Write_Lock = False
     lock_brakes(armSerialportDic['SUJ1'])
@@ -594,4 +488,4 @@ if __name__ == '__main__':
     armSerialportDic['SUJ2'].close()
     armSerialportDic['ECM'].close()
     print('Lock Successfully')
-
+    print('exit program')
