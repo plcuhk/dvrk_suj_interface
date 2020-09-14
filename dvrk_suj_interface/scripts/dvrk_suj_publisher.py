@@ -8,12 +8,15 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 from dvrk_suj_interface.msg import Bool_List
 
-ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
-ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
-ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+# ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
+#                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+# ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
+#                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+# ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
+#                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2)
+ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2)
+ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2)
 
 POT_Condition_suj1 = [1, 1, 1, 1, 1, 1,
                         0, 1, 1, 1, 1, 1]                         
