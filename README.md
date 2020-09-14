@@ -1,3 +1,6 @@
+# Overview
+This package provide a control interface for SUJs 
+
 # Dependency
 - Software: This package requires the installation of ROS.
 - hardware: This package requires the SUJ control board from CUHK-BMT
@@ -33,4 +36,11 @@ roscore
 oepen another terminal, type
 ```sh
 rosrun dvrk_suj_interface dvrk_suj_publisher.py
+```
+
+
+# Test
+To test if your program is reading from sensors correctly, you can open a terminal and type
+```sh
+rostopic echo -c /dvrk/SUJ/ECM/set_position_joint
 ```
