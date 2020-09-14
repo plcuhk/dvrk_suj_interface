@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import serial
 import time
 import numpy as np
@@ -8,7 +9,7 @@ ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False
 ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)                                        
+                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 
 POT_Condition_suj1_ecm = [1, 1, 1, 1, 1, 1,
                           0, 1, 1, 1, 1, 1]
@@ -19,6 +20,7 @@ pi = np.pi
 joint_offset_suj1 = [-0.115, -pi, -pi, -pi, -pi, -pi]
 joint_offset_suj2 = [-0.109, -pi, -pi, -pi, -pi, -pi]
 joint_offset_ecm = [-0.141, -pi, -pi, -pi, -pi, -pi]
+
 
 def get_suj_joint_reading(serial_port):
     readings = []
@@ -44,7 +46,6 @@ def get_suj_joint_reading(serial_port):
     else:
         arm = "ECM"
 
-
     serial_port.write(b"AT+READALL\r\n")
     for i in range(13):
         readings.append(serial_port.read_until())
@@ -54,25 +55,26 @@ def get_suj_joint_reading(serial_port):
             else:
                 serial_port.reset_input_buffer()
                 print("Reading Error.")
-    #print(readings)
+    # print(readings)
     for reading_ in readings[:-1]:
         reading_ = reading_.decode('utf-8')
         POT = int(reading_[-3], 16)
         POT_sum += POT
         voltage = float(int(reading_[0:6], 16)) / float(full_range) * 2.5
         voltages[POT] = voltage
-    # It is noted that the readings can contain duplicate data from 
+    # It is noted that the readings can contain duplicate data from
     # the ADC due to the hardware reason. And the duplicate readings at the first and last position in the 12 readings.
-    # ***** Check methead 1 *****
+    # ***** Check method 1 *****
     # if readings[0].decode('utf-8')[-3] == readings[11].decode('utf-8').[-3] :
     #   valid_reading = False
-    # ***** Check method 2 ***** 
+    # ***** Check method 2 *****
     # 66 = sum(0 to 11)
     if POT_sum != 66:
         valid_reading = False
     print(arm + ' reading:')
     print(readings)
     return voltages, valid_reading, arm
+
 
 def get_suj_joint_pos(voltages, suj_type):
     if suj_type == 'SUJ1':
@@ -88,14 +90,14 @@ def get_suj_joint_pos(voltages, suj_type):
     for joint_ in range(6):
         if joint_ == 0:
             if suj_type == 'SUJ1':
-                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
+                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
                                     + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
             elif suj_type == 'SUJ2':
-                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567              
-                
+                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
+                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567
+
             else:
-                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] 
+                joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
                                     + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
         else:
             joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] + voltages[joint_+6] * POT_Condition[joint_+6])\
@@ -153,27 +155,36 @@ def get_data():
         [reading3, isValid3, arm3] = get_suj_joint_reading(ser3)
         allIsValid = (isValid1 and isValid2 and isValid3)
 
+    armSerialport = {}
     if arm1 == 'SUJ1':
         suj1_joint = get_suj_joint_pos(reading1, 'SUJ1')
+        armSerialport['SUJ1'] = ser1
     elif arm1 == 'SUJ2':
         suj2_joint = get_suj_joint_pos(reading1, 'SUJ2')
+        armSerialport['SUJ2'] = ser1
     else:
         ecm_joint = get_suj_joint_pos(reading1, 'ECM')
-    
+        armSerialport['ECM'] = ser1
+
     if arm2 == 'SUJ1':
         suj1_joint = get_suj_joint_pos(reading2, 'SUJ1')
+        armSerialport['SUJ1'] = ser2
     elif arm2 == 'SUJ2':
         suj2_joint = get_suj_joint_pos(reading2, 'SUJ2')
+        armSerialport['SUJ2'] = ser2
     else:
         ecm_joint = get_suj_joint_pos(reading2, 'ECM')
+        armSerialport['ECM'] = ser2
 
     if arm3 == 'SUJ1':
         suj1_joint = get_suj_joint_pos(reading3, 'SUJ1')
+        armSerialport['SUJ1'] = ser3
     elif arm3 == 'SUJ2':
         suj2_joint = get_suj_joint_pos(reading3, 'SUJ2')
+        armSerialport['SUJ2'] = ser3
     else:
         ecm_joint = get_suj_joint_pos(reading3, 'ECM')
-
+        armSerialport['ECM'] = ser3
 
     suj1_joint_deg = [180 / pi * i for i in suj1_joint]
     suj2_joint_deg = [180 / pi * i for i in suj2_joint]
@@ -181,14 +192,74 @@ def get_data():
     suj1_joint_deg[0] = suj1_joint[0]
     suj2_joint_deg[0] = suj2_joint[0]
     ecm_joint_deg[0] = ecm_joint[0]
-    
+
+    # ser1.close()
+    # ser2.close()
+    # ser3.close()
+    # return [suj1_joint, suj2_joint, ecm_joint], armSerialport
+    return [suj1_joint_deg, suj2_joint_deg, ecm_joint_deg], armSerialport
+
+
+if __name__ == '__main__':
+    print('Initial Reading:')
+    [data, armSerialportDic] = get_data()
+    print('\n\nSUJ1 --> SUJ2 --> ECM')
+    for data_ in data:
+        print(data_)
+
+    while True:
+        print('\n--->Choose Mode:')
+        action_mode = input('1: Release Single Joint \n2: elease All Joints \
+                            \n3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
+        if action_mode == 1:
+            print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
+            print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
+            user_input = input('Example Input: [1, 1] \n')
+            arm = user_input[0]
+            joint = user_input[1]
+            if arm == 1:
+                release_brakes_single(joint, armSerialportDic['SUJ1'])
+            elif arm == 2:
+                release_brakes_single(joint, armSerialportDic['SUJ2'])
+            elif arm == 3:
+                release_brakes_single(joint, armSerialportDic['ECM'])
+            else:
+                print('Error: Invalid Arm Index')
+
+        elif action_mode == 2:
+            armIndex = input('Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
+            if armIndex == 1:
+                release_brakes(armSerialportDic['SUJ1'])
+            elif armIndex == 2:
+                release_brakes(armSerialportDic['SUJ2'])
+            elif armIndex == 3:
+                release_brakes(armSerialportDic['ECM'])
+            else:
+                print('Error: Invalid Arm Index')
+
+        elif action_mode == 3:
+            [data, armSerialportDic] = get_data()
+            print('\n\nSUJ1 --> SUJ2 --> ECM')
+            for data_ in data:
+                print(data_)
+
+        elif action_mode == 4:
+            lock_brakes(ser1)
+            lock_brakes(ser2)
+            lock_brakes(ser3)
+
+        elif action_mode == 5:
+            break
+        else:
+            print('Error: Invalid Mode')
+            break
+
+    print('Auto Lock All Joints ......')
+    lock_brakes(ser1)
+    lock_brakes(ser2)
+    lock_brakes(ser3)
     ser1.close()
     ser2.close()
     ser3.close()
-    # return suj1_joint, suj2_joint, ecm_joint
-    return suj1_joint_deg, suj2_joint_deg, ecm_joint_deg
-if __name__ == '__main__':
-    [data1, data2, data3] = get_data()
-    print('SUJ1-SUJ2-ECM-Joint Position:')
-    for data_ in [data1, data2, data3]:     
-        print(data_)
+    print('Lock Successfully')
+
