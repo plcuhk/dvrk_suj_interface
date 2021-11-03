@@ -5,19 +5,19 @@ import numpy as np
 import copy
 
 ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 
 POT_Condition_suj1 = [1, 1, 1, 1, 1, 1,
-                        0, 1, 1, 1, 1, 1]                         
+                      0, 1, 1, 1, 1, 1]
 POT_Condition_suj2 = [1, 1, 1, 1, 1, 1,
                       1, 1, 1, 1, 1, 1]
 
 POT_Condition_ecm = [1, 1, 1, 1, 1, 1,
-                          0, 1, 1, 1, 1, 1]
+                     0, 1, 1, 1, 1, 1]
 
 full_range = int('FFFFFF', 16)
 # pi = np.pi
@@ -105,40 +105,42 @@ def get_suj_joint_pos(voltages, suj_type):
         if joint_ == 0:
             if suj_type == 'SUJ1':
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
             elif suj_type == 'SUJ2':
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567
 
             else:
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
         else:
             joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] + voltages[joint_+6] * POT_Condition[joint_+6])\
-                                / 2 / 2.5 * 2 * pi
+                / 2 / 2.5 * 2 * pi
     joint_pos[3] *= -1
     if suj_type == 'ECM':
         joint_pos = joint_pos[0:4]
     return joint_pos
 
-# transform digital readings to degrees values 
+# transform digital readings to degrees values
+
+
 def dReading2degree(d_reading, suj_type, ratio_list, bias_list, POT_Condition):
     joint_pos_deg = [0 for i in range(6)]
     joint_pos_read = [0 for i in range(6)]
     for joint_ in range(6):
-            if (POT_Condition[joint_]+POT_Condition[joint_+6])==2:
-                joint_pos_read[joint_] += (d_reading[joint_] * POT_Condition[joint_] + 
-                                            d_reading[joint_+6] * POT_Condition[joint_+6])/ 2
+        if (POT_Condition[joint_]+POT_Condition[joint_+6]) == 2:
+            joint_pos_read[joint_] += (d_reading[joint_] * POT_Condition[joint_] +
+                                       d_reading[joint_+6] * POT_Condition[joint_+6]) / 2
 
-            elif (POT_Condition[joint_]+POT_Condition[joint_+6])==1:
-                joint_pos_read[joint_] += (d_reading[joint_] * POT_Condition[joint_] + 
-                                d_reading[joint_+6] * POT_Condition[joint_+6])
-            else:
-                raise Exception('POT_condition should either 1 or 2, now is {}'.format(POT_Condition[joint_]+POT_Condition[joint_+6]))
+        elif (POT_Condition[joint_]+POT_Condition[joint_+6]) == 1:
+            joint_pos_read[joint_] += (d_reading[joint_] * POT_Condition[joint_] +
+                                       d_reading[joint_+6] * POT_Condition[joint_+6])
+        else:
+            raise Exception('POT_condition should either 1 or 2, now is {}'.format(
+                POT_Condition[joint_]+POT_Condition[joint_+6]))
 
-            joint_pos_deg[joint_] = joint_pos_read[joint_] * ratio_list[joint_]\
-                        + bias_list[joint_]
-
+        joint_pos_deg[joint_] = joint_pos_read[joint_] * ratio_list[joint_]\
+            + bias_list[joint_]
 
     return joint_pos_read, joint_pos_deg
 
@@ -168,6 +170,7 @@ def release_brakes_single(joint_num, ser):
         ser.reset_input_buffer()
         print("Fail to release joint brake: %d" % joint_num)
 
+
 def control_brakes(is_release_brake_list, ser):
     if len(bool_list) == 6:
         for i in range(6):
@@ -177,6 +180,7 @@ def control_brakes(is_release_brake_list, ser):
                 lock_brakes_single(i+1, ser)
     else:
         print('length  of control brake list should be 6')
+
 
 def lock_brakes_single(joint_num, ser):
     if joint_num not in [1, 2, 3, 4, 5, 6]:
@@ -192,6 +196,7 @@ def lock_brakes_single(joint_num, ser):
     else:
         ser.reset_input_buffer()
         print("Fail to lock joint brake: %d" % joint_num)
+
 
 def lock_brakes(ser):
     ser.write(b"AT+LOCKALL\r\n")
@@ -260,25 +265,26 @@ def readSerial(ser):
         [v_reading, d_reading, isValid, arm_str] = get_suj_joint_reading(ser)
 
     if arm_str == 'SUJ1':
-        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,\
-                                        arm_str,\
-                                        reading_ratios_suj1,\
-                                        reading_offset_suj1,\
-                                        POT_Condition_suj1)
+        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,
+                                                        arm_str,
+                                                        reading_ratios_suj1,
+                                                        reading_offset_suj1,
+                                                        POT_Condition_suj1)
     if arm_str == 'SUJ2':
-        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,\
-                                        arm_str,\
-                                        reading_ratios_suj2,\
-                                        reading_offset_suj2,\
-                                        POT_Condition_suj2)
+        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,
+                                                        arm_str,
+                                                        reading_ratios_suj2,
+                                                        reading_offset_suj2,
+                                                        POT_Condition_suj2)
     if arm_str == 'ECM':
-        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,\
-                                        arm_str,\
-                                        reading_ratios_ecm,\
-                                        reading_offset_ecm,\
-                                        POT_Condition_ecm)
+        joint_pos_read, joint_pos_deg = dReading2degree(d_reading,
+                                                        arm_str,
+                                                        reading_ratios_ecm,
+                                                        reading_offset_ecm,
+                                                        POT_Condition_ecm)
 
     return joint_pos_read, joint_pos_deg, arm_str
+
 
 def readAll(ser1, ser2, ser3):
     armSerialportDic = {}
@@ -304,7 +310,7 @@ def readAll(ser1, ser2, ser3):
     print(joint_pos_read_dict['SUJ1'])
     print(joint_pos_read_dict['SUJ2'])
     print(joint_pos_read_dict['ECM'])
-    print('\n\n degree SUJ1 --> SUJ2 --> ECM')  
+    print('\n\n degree SUJ1 --> SUJ2 --> ECM')
     print(joint_pos_deg_dict['SUJ1'])
     print(joint_pos_deg_dict['SUJ2'])
     print(joint_pos_deg_dict['ECM'])
@@ -318,17 +324,16 @@ if __name__ == '__main__':
     joint_pos_deg_dict = {}
     print('Initial Reading:')
     # serial connection and intial reading
-    armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
-
-    
-
+    armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
+        ser1, ser2, ser3)
 
     while True:
         print('\n--->Choose Mode:')
         action_mode = input('1: Release Single Joint \n2: elease All Joints \
                             \n3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
         if action_mode == 1:
-            print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
+            print(
+                'Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
             print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
             user_input = input('Example Input: [1, 1] \n')
             arm = user_input[0]
@@ -343,7 +348,8 @@ if __name__ == '__main__':
                 print('Error: Invalid Arm Index')
 
         elif action_mode == 2:
-            armIndex = input('Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
+            armIndex = input(
+                'Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
             if armIndex == 1:
                 release_brakes(armSerialportDic['SUJ1'])
             elif armIndex == 2:
@@ -354,7 +360,8 @@ if __name__ == '__main__':
                 print('Error: Invalid Arm Index')
 
         elif action_mode == 3:
-            armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(ser1, ser2, ser3)
+            armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
+                ser1, ser2, ser3)
 
         elif action_mode == 4:
             lock_brakes(ser1)
@@ -388,4 +395,3 @@ if __name__ == '__main__':
     ser2.close()
     ser3.close()
     print('Lock Successfully')
-

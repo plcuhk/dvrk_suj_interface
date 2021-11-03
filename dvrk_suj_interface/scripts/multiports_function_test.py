@@ -5,11 +5,11 @@ import numpy as np
 import copy
 
 ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
-                    write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 
 POT_Condition_suj1_ecm = [1, 1, 1, 1, 1, 1,
                           0, 1, 1, 1, 1, 1]
@@ -91,17 +91,17 @@ def get_suj_joint_pos(voltages, suj_type):
         if joint_ == 0:
             if suj_type == 'SUJ1':
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) * 0.460422
             elif suj_type == 'SUJ2':
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.462567
 
             else:
                 joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_]
-                                    + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
+                                      + voltages[joint_+6] * POT_Condition[joint_+6]) / 2 * 0.440917
         else:
             joint_pos[joint_] += (voltages[joint_] * POT_Condition[joint_] + voltages[joint_+6] * POT_Condition[joint_+6])\
-                                / 2 / 2.5 * 2 * pi
+                / 2 / 2.5 * 2 * pi
     joint_pos[3] *= -1
     if suj_type == 'ECM':
         joint_pos = joint_pos[0:4]
@@ -212,7 +212,8 @@ if __name__ == '__main__':
         action_mode = input('1: Release Single Joint \n2: elease All Joints \
                             \n3: Read Joint position \n4: Lock All Joints \n5: Exit\n')
         if action_mode == 1:
-            print('Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
+            print(
+                'Use Input List Form: [ArmIndex, JointIndex] \nSUJ1: 1 \nSUJ2: 2 \nECM: 3')
             print('SUJ1 & SUJ2 Joint Index: 1-6 \nECM JOint INdex: 1-4')
             user_input = input('Example Input: [1, 1] \n')
             arm = user_input[0]
@@ -227,7 +228,8 @@ if __name__ == '__main__':
                 print('Error: Invalid Arm Index')
 
         elif action_mode == 2:
-            armIndex = input('Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
+            armIndex = input(
+                'Input the Arm Index to Release:\nSUJ1:1  SUJ2:2  ECM:3\n')
             if armIndex == 1:
                 release_brakes(armSerialportDic['SUJ1'])
             elif armIndex == 2:
@@ -262,4 +264,3 @@ if __name__ == '__main__':
     ser2.close()
     ser3.close()
     print('Lock Successfully')
-
