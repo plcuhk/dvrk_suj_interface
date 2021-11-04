@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-from re import S
+from pickle import TRUE
+from re import S, T
+from typing import final
 from rospy.impl.rosout import RosOutHandler
 import serial
 import time
@@ -12,12 +14,19 @@ from dvrk_suj_interface.msg import Bool_List
 
 from enum import Enum
 from pprint import pprint
+from threading import Lock
+
+# enable this if want to debug mutex message
+PRINT_MUTEX_DEBUG_MSG = True
+
+# TODO: changing to use python mutex instead
+mutex_timeout = 2 # 1s timeout for mutex accquiring
+serial_mutex = Lock()
 
 class SujType(Enum):
     SUJ2 = 1
     ECM = 2
     SUJ1 = 3
-
 
 full_range = int('FFFFFF', 16)
 pi = np.pi
@@ -30,6 +39,11 @@ serial_devices_list = {
 }
 # initialize the dict of serial device in runtime
 serial_devices_dict = {}
+
+# global brake release dict
+is_brake_release_dict = {}
+for suj in SujType:
+    is_brake_release_dict[suj] = [False] * 6
 
 # const global dictionary
 pot_condition_dict = {
@@ -96,102 +110,96 @@ reading_offset_dict = {
     ]
 }
 
-# global brake release dict
-is_brake_release_dict = {}
-for suj in SujType:
-    is_brake_release_dict[suj] = [False] * 6
-
-# TODO: changing to use python mutex instead
-Read_Lock = False
-Write_Lock = False
-
 def get_suj_joint_reading(serial_port):
-    #global Read_Lock
-    global Write_Lock
-    global Read_Lock
-    # block the code when Read_Lock is true
-    while(Write_Lock):
-        print("get_suj_joint_reading writelock blocking")
-        pass
-
-    rospy.logdebug("get_suj_joint_reading Read_Lock accquired")
-    Read_Lock = True
-
+    
+    # initialize the return values
     readings = []
     POT_sum = 0
     valid_reading = True
     # voltages = np.zeros((12, 1)).tolist()
     voltages = [0 for i in range(12)]
     reading_list = [0 for i in range(12)]
+    suj_type = None
 
-    serial_port.write(b"AT+ADDRESS\r\n")
-    serial_port_address = serial_port.read_until().decode('utf-8')
-    address_num = int(serial_port_address[0], 16)
-    isGetAddressScuess = serial_port.read_until()
-    if isGetAddressScuess == b"OK\r\n":
-        #rospy.loginfo('Port Address Obtained Successfully')
-        pass
-    else:
-        serial_port.reset_input_buffer()
-        rospy.logerr('Failed to Get Port Address')
+    # accquire the write lock
+    if not serial_mutex.acquire(timeout=mutex_timeout):
+        rospy.logerr("get_suj_joint_reading serial mutex accquiring timeout")
+        return voltages, reading_list, valid_reading, suj_type
 
-    if address_num == SujType.SUJ1.value:
-        suj_type = SujType.SUJ1
-    elif address_num == SujType.SUJ2.value:
-        suj_type = SujType.SUJ2
-    elif address_num == SujType.ECM.value:
-        suj_type = SujType.ECM
-    else:
-        rospy.logerr('Failed to Get Port Address')
+    try:
+        serial_port.write(b"AT+ADDRESS\r\n")
+        serial_port_address = serial_port.read_until().decode('utf-8')
+        address_num = int(serial_port_address[0], 16)
+        isGetAddressScuess = serial_port.read_until()
+        if isGetAddressScuess == b"OK\r\n":
+            #rospy.loginfo('Port Address Obtained Successfully')
+            pass
+        else:
+            serial_port.reset_input_buffer()
+            rospy.logerr('Failed to Get Port Address')
 
-    serial_port.write(b"AT+READALL\r\n")
-    for i in range(13):
-        readings.append(serial_port.read_until())
-        if i == 12:
-            if readings[i][-4:] == b"OK\r\n":
-                #rospy.loginfo('Reading Success.')
-                pass
-            else:
-                serial_port.reset_input_buffer()
-                rospy.logerr("Reading Error.")
+        if address_num == SujType.SUJ1.value:
+            suj_type = SujType.SUJ1
+        elif address_num == SujType.SUJ2.value:
+            suj_type = SujType.SUJ2
+        elif address_num == SujType.ECM.value:
+            suj_type = SujType.ECM
+        else:
+            rospy.logerr('Failed to Get Port Address')
 
-    # rospy.loginfo(readings)
-    for reading_ in readings[:-1]:
-        reading_ = reading_.decode('utf-8')
-        POT = int(reading_[-3], 16)
-        POT_sum += POT
-        voltage = float(int(reading_[0:6], 16)) / float(full_range) * 2.5
-        read_value = int(reading_[0:6], 16)
-        reading_list[POT] = read_value
-        voltages[POT] = voltage
-    # It is noted that the readings can contain duplicate data from
-    # the ADC due to the hardware reason. And the duplicate readings at the first and last position in the 12 readings.
-    # ***** Check method 1 *****
-    # if readings[0].decode('utf-8')[-3] == readings[11].decode('utf-8').[-3] :
-    #   valid_reading = False
-    # ***** Check method 2 *****
-    # 66 = sum(0 to 11)
-    if POT_sum != 66:
-        valid_reading = False
-    #rospy.loginfo(suj_type + ' reading:')
-    # rospy.loginfo(readings)
+        serial_port.write(b"AT+READALL\r\n")
+        for i in range(13):
+            readings.append(serial_port.read_until())
+            if i == 12:
+                if readings[i][-4:] == b"OK\r\n":
+                    #rospy.loginfo('Reading Success.')
+                    pass
+                else:
+                    serial_port.reset_input_buffer()
+                    rospy.logerr("Reading Error.")
+                    return [0, 0, False, 0]
 
-    # reset the Read Lock
-    rospy.logdebug("get_suj_joint_reading Read_Lock released")
-    Read_Lock = False
 
-    return voltages, reading_list, valid_reading, suj_type
+        # rospy.loginfo(readings)
+        for reading_ in readings[:-1]:
+            reading_ = reading_.decode('utf-8')
+            POT = int(reading_[-3], 16)
+            POT_sum += POT
+            voltage = float(int(reading_[0:6], 16)) / float(full_range) * 2.5
+            read_value = int(reading_[0:6], 16)
+            reading_list[POT] = read_value
+            voltages[POT] = voltage
+
+        # It is noted that the readings can contain duplicate data from
+        # the ADC due to the hardware reason. And the duplicate readings at the first and last position in the 12 readings.
+        # ***** Check method 1 *****
+        # if readings[0].decode('utf-8')[-3] == readings[11].decode('utf-8').[-3] :
+        #   valid_reading = False
+        # ***** Check method 2 *****
+        # 66 = sum(0 to 11)
+
+        if POT_sum != 66:
+            valid_reading = False
+
+    finally:
+        serial_mutex.release()
+        return voltages, reading_list, valid_reading, suj_type
+
 
 def dReading2degree(suj_type, d_reading):
-    # retrive the global list
-    ratio_list = reading_ratios_dict[suj_type]
-    bias_list = reading_offset_dict[suj_type]
-    pot_condition = pot_condition_dict[suj_type]
-
     # init the output list
     joint_pos_deg = [0 for i in range(6)]
     joint_pos_read = [0 for i in range(6)]
 
+    if suj_type == None:
+        rospy.logerr('Suj Type is None')
+        return joint_pos_deg, joint_pos_deg
+
+    # retrive the global list
+    ratio_list = reading_ratios_dict[suj_type]
+    bias_list = reading_offset_dict[suj_type]
+    pot_condition = pot_condition_dict[suj_type]
+    
     for joint_ in range(6):
         if (pot_condition[joint_]+pot_condition[joint_+6]) == 2:
             joint_pos_read[joint_] += (d_reading[joint_] * pot_condition[joint_] +
@@ -213,66 +221,73 @@ def dReading2degree(suj_type, d_reading):
 
 
 def release_brakes(ser):
-    global Write_Lock
-    global Read_Lock
-    # block the code when Read_Lock is true
-    while(Read_Lock):
-        print("release_brakes readlock blocking")
-        pass
-    Write_Lock = True
-    ser.write(b"AT+FREEALL\r\n")
-    respond = ser.read_until()
-    if respond == b"OK\r\n":
-        rospy.loginfo("All brakes are released successfully.")
-    else:
-        ser.reset_input_buffer()
-        rospy.logerr("All Brakes Release Failed.")
-    Write_Lock = False
+    # accquire the serial lock
+
+    if not serial_mutex.acquire(timeout=mutex_timeout):
+        rospy.logerr("release_brakes serial mutex accquiring timeout")
+        return False
+
+    try:
+        ret = False
+        ser.write(b"AT+FREEALL\r\n")
+        respond = ser.read_until()
+        if respond == b"OK\r\n":
+            rospy.loginfo("All brakes are released successfully.")
+            ret = True
+        else:
+            ser.reset_input_buffer()
+            rospy.logerr("All Brakes Release Failed.")
+    finally:
+        serial_mutex.release()
+        return ret
 
 def release_brakes_single(joint_num, ser):
-    global Write_Lock
-    global Read_Lock
-    
     rospy.logdebug("release_brakes_single Joint no.: %d" % joint_num)
+    
+    # validate joint number
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         rospy.logerr("Error: joint index out of range [1, 2, 3, 4, 5, 6].")
-        return
+        return False
 
-    # block the code when Read_Lock is true
-    while(Read_Lock):
-        rospy.loginfo("release_brakes_single readlock blocking")
-        pass
-    Write_Lock = True
+    # accquire the serial lock
+    if not serial_mutex.acquire(timeout=mutex_timeout):
+        rospy.logerr("release_brakes serial mutex accquiring timeout")
+        return False
 
-    joint_index = str(joint_num).encode()
-    ser.write(b"AT+FREE=" + joint_index + b"\r\n")
-    respond = ser.read_until()
+    try:
+        ret = False
+        ser.write(b"AT+FREE=" + str(joint_num).encode() + b"\r\n")
+        respond = ser.read_until()
 
-    if respond == b"OK\r\n":
-        rospy.loginfo("Succeed to release joint brake: %d" % joint_num)
-    else:
-        ser.reset_input_buffer()
-        rospy.loginfo("Fail to release joint brake: %d" % joint_num)
-
-    Write_Lock = False
+        if respond == b"OK\r\n":
+            rospy.loginfo("Succeed to release joint brake: %d" % joint_num)
+            ret = True
+        else:
+            ser.reset_input_buffer()
+            rospy.loginfo("Fail to release joint brake: %d" % joint_num)
+    finally:
+        serial_mutex.release()
+        return ret
 
 def lock_brakes(ser):
-    global Write_Lock
-    global Read_Lock
-    # block the code when Read_Lock is true
-    while(Read_Lock):
-        print("lock_brakes Read_Lock blocking")
-        pass
-    Write_Lock = True
-    ser.write(b"AT+LOCKALL\r\n")
-    respond = ser.read_until()
-    if respond == b"OK\r\n":
-        rospy.loginfo("All brakes are locked successfully.")
-    else:
-        ser.reset_input_buffer()
-        rospy.logerr("All Brakes Lock Failed.")
+    # accquire the serial lock
+    if not serial_mutex.acquire(timeout=mutex_timeout):
+        rospy.logerr("release_brakes serial mutex accquiring timeout")
+        return False
+    try:
+        ret = False
+        ser.write(b"AT+LOCKALL\r\n")
+        respond = ser.read_until()
 
-    Write_Lock = False
+        if respond == b"OK\r\n":
+            rospy.loginfo("All brakes are locked successfully.")
+            ret = True
+        else:
+            ser.reset_input_buffer()
+            rospy.logerr("All Brakes Lock Failed.")
+    finally:
+        serial_mutex.release()
+        return ret
 
 def control_brakes(is_release_brake_list, ser):
     rospy.logdebug("control_brakes")
@@ -280,26 +295,31 @@ def control_brakes(is_release_brake_list, ser):
 
     # validate the input
     if len(is_release_brake_list) != 6:
-        rospy.logerr('length  of control brake list should be 6')
-        return 
+        rospy.logerr('length of control brake list should be 6')
+        return False
 
+    ret = True
     # lock all the brake first then release the brake respectively
-    lock_brakes(ser)
+    ret = ret and lock_brakes(ser)
 
     for i in range(6):
         if is_release_brake_list[i]:
-            release_brakes_single(i+1, ser)
+            ret = ret and release_brakes_single(i+1, ser)
+    return ret
 
 def readSerial(ser):
     isValid = False
+    suj_type = None
     while not(isValid):
         # v_reading1~3 are the voltage readings
         # d_reading1~3 are the original digital readings
         [v_reading, d_reading, isValid, suj_type] = get_suj_joint_reading(ser)
 
-    joint_pos_read, joint_pos_deg = dReading2degree(suj_type, d_reading)
-    return joint_pos_read, joint_pos_deg, suj_type
+    joint_pos_read, joint_pos_deg= [], []
 
+    if isValid:
+        joint_pos_read, joint_pos_deg = dReading2degree(suj_type, d_reading)
+    return joint_pos_read, joint_pos_deg, suj_type
 
 def readAll():
     global serial_devices_dict
@@ -336,29 +356,27 @@ def _control_brakes_callback(suj_type, cmd_list):
     # validate the serial devices dict is initialized
     if suj_type not in serial_devices_dict:
         rospy.logerr("Error: serial devices dict is not initialized or the suj type not found in the serial devices dict")
-        return
+        return False
 
-    count = 0
+    # validate the input
+    if len(cmd_list) != 6:
+        rospy.logerr("The brake_list command should contains 6 Boolean arguments")
+        return False
+    
+    # debug
+    pprint("cmd_list {}".format(cmd_list))
+    pprint("is_brake_release_dict[suj_type] {}".format(is_brake_release_dict[suj_type]))
 
-    if len(cmd_list) == 6:
-        # check if the current brake release list is the same as bool list
-        for i in range(6):
-            if(cmd_list[i] != is_brake_release_dict[suj_type][i]):
-                count = count + 1
+    # if action control is required
+    if cmd_list != is_brake_release_dict[suj_type]:
+        is_brake_release_dict[suj_type] = cmd_list # update the brake release status
+        ret = control_brakes(is_brake_release_dict[suj_type], serial_devices_dict[suj_type])
+        # TODO: handle cases when not all the brakes are released
 
-        # debug
-        pprint("cmd_list {}".format(cmd_list))
-        pprint("is_brake_release_dict[suj_type] {}".format(is_brake_release_dict[suj_type]))
-        # pprint("count {}".format(count))
-
-        # if action control is required
-        if count != 0:
-            is_brake_release_dict[suj_type] = cmd_list
-            control_brakes(
-                is_brake_release_dict[suj_type], serial_devices_dict[suj_type])
+        return ret
     else:
-        rospy.logerr(
-            "The brake_list command should contains 6 Boolean arguments")
+        # no action required as the current status is the same as the input
+        return True
 
 def control_brakes_SUJ1_cb(msg):
     _control_brakes_callback(SujType.SUJ1, msg.isBrakeList)
@@ -372,6 +390,9 @@ def control_brakes_ECM_cb(msg):
 if __name__ == '__main__':
     rospy.loginfo('Initiate serial reading objects')
     joint_pos_read_dict, joint_pos_deg_dict = readAll()
+
+    pprint(joint_pos_read_dict)
+    pprint(joint_pos_deg_dict)
 
     rospy.init_node('dvrk_suj_publisher', log_level=rospy.DEBUG,
                     anonymous=True, disable_signals=True)
@@ -395,29 +416,37 @@ if __name__ == '__main__':
     pub_dict[SujType.SUJ2] = PSM2_suj_pub
     pub_dict[SujType.ECM] = ECM_suj_pub
 
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(100)
     is_success_print = True
-    while not rospy.is_shutdown():
-        try:
-            # joint_pos_read_dict, joint_pos_deg_dict = readAll()
-            # publish_joint_states(joint_pos_deg_dict[SujType.SUJ1], pub_dict[SujType.SUJ1])
-            # publish_joint_states(joint_pos_deg_dict[SujType.SUJ2], pub_dict[SujType.SUJ2])
-            # publish_joint_states(joint_pos_deg_dict[SujType.ECM], pub_dict[SujType.ECM])
+    interrupted = False
 
-            rate.sleep()
+    while not rospy.is_shutdown() and not interrupted:
+        try:
+            joint_pos_read_dict, joint_pos_deg_dict = readAll()
+            publish_joint_states(joint_pos_deg_dict[SujType.SUJ1], pub_dict[SujType.SUJ1])
+            publish_joint_states(joint_pos_deg_dict[SujType.SUJ2], pub_dict[SujType.SUJ2])
+            publish_joint_states(joint_pos_deg_dict[SujType.ECM], pub_dict[SujType.ECM])
+
             if is_success_print:
                 rospy.loginfo("dvrk_suj_publisher is running................")
                 rospy.loginfo("close the program by ctrl+c")
                 is_success_print = False
 
         except KeyboardInterrupt:
-            break
+            #TODO never catch the KeyboardInterrupt
+            rospy.loginfo("Got KeyboardInterrupt")
+            interrupted = True
+        
+        except KeyError:
+            rospy.logerr("Got KeyError")
+            interrupted = True
+            
+        finally:
+            rate.sleep()
 
     rospy.loginfo('Auto Lock All Joints ......')
-    # global Read_Lock
-    # global Write_Lock
-    Read_Lock = False
-    Write_Lock = False
+    if serial_mutex.locked():
+        serial_mutex.release()
 
     for ser in serial_devices_list:
         lock_brakes(ser)
