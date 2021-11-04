@@ -9,6 +9,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 from dvrk_suj_interface.msg import Bool_List
 
+from enum import Enum
 from pprint import pprint
 
 # ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
@@ -17,6 +18,7 @@ from pprint import pprint
 #                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
 # ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2, xonxoff=False, rtscts=False,
 #                     write_timeout=0.5, dsrdtr=False, inter_byte_timeout=None, exclusive=None)
+
 ser1 = serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2)
 ser2 = serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2)
 ser3 = serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2)
@@ -25,7 +27,6 @@ POT_Condition_suj1 = [1, 1, 1, 1, 1, 1,
                       0, 1, 1, 1, 1, 1]
 POT_Condition_suj2 = [1, 1, 1, 1, 1, 1,
                       1, 1, 1, 1, 1, 1]
-
 POT_Condition_ecm = [1, 1, 1, 1, 1, 1,
                      0, 1, 1, 1, 1, 1]
 
@@ -81,13 +82,6 @@ reading_offset_ecm = [
     0e+02,
     0e+02]
 
-
-# brake control unit
-is_brake_release_list_SUJ1 = [False] * 6
-is_brake_release_list_SUJ2 = [False] * 6
-is_brake_release_list_ECM = [False] * 6
-
-
 Read_Lock = False
 Write_Lock = False
 
@@ -98,9 +92,15 @@ joint_pos_deg_dict = {}  # deg data
 pub_dict = {}  # ros publisher obj
 is_brake_release_dict = {}
 
-is_brake_release_dict['SUJ1'] = is_brake_release_list_SUJ1
-is_brake_release_dict['SUJ2'] = is_brake_release_list_SUJ2
-is_brake_release_dict['ECM'] = is_brake_release_list_ECM
+
+class SujDevice(Enum):
+    SUJ1 = 1
+    SUJ2 = 2
+    ECM = 3
+
+
+for suj in SujDevice:
+    is_brake_release_dict[suj] = [False] * 6
 
 
 def get_suj_joint_reading(serial_port):
@@ -109,7 +109,10 @@ def get_suj_joint_reading(serial_port):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Write_Lock):
+        print("get_suj_joint_reading writelock blocking")
         pass
+
+    rospy.logdebug("get_suj_joint_reading Read_Lock accquired")
     Read_Lock = True
 
     readings = []
@@ -169,6 +172,7 @@ def get_suj_joint_reading(serial_port):
     # rospy.loginfo(readings)
 
     # reset the Read Lock
+    rospy.logdebug("get_suj_joint_reading Read_Lock released")
     Read_Lock = False
 
     return voltages, reading_list, valid_reading, arm
@@ -236,6 +240,7 @@ def release_brakes(ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
+        print("release_brakes readlock blocking")
         pass
     Write_Lock = True
     ser.write(b"AT+FREEALL\r\n")
@@ -254,6 +259,7 @@ def release_brakes_single(joint_num, ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
+        rospy.loginfo("release_brakes_single readlock blocking")
         pass
     Write_Lock = True
 
@@ -299,6 +305,7 @@ def lock_brakes_single(joint_num, ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
+        print("lock_brakes_single readlock blocking")
         pass
     Write_Lock = True
 
@@ -324,6 +331,7 @@ def lock_brakes(ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
+        print("lock_brakes Read_Lock blocking")
         pass
     Write_Lock = True
     ser.write(b"AT+LOCKALL\r\n")
@@ -412,17 +420,22 @@ def publish_joint_states(joint_states_list, pub):
     pub.publish(msg)
 
 
+def validate_brake_command_list(cmd_list, ):
+    pass
+
+
 def control_brakes_SUJ1_cb(msg):
     rospy.logdebug("control_brakes_SUJ1_cb")
     global is_brake_release_dict
     global armSerialportDic
     count = 0
     bool_list = msg.isBrakeList
+
     if len(bool_list) == 6:
 
         # check if the current brake release list is the same as bool list
         for i in range(6):
-            if(bool_list[i] != is_brake_release_dict['SUJ1'][i]):
+            if(bool_list[i] != is_brake_release_dict[SujDevice.SUJ1][i]):
                 count = count + 1
 
         pprint(bool_list)
@@ -431,9 +444,9 @@ def control_brakes_SUJ1_cb(msg):
 
         # if action control is required
         if count != 0:
-            is_brake_release_dict['SUJ1'] = bool_list
+            is_brake_release_dict[SujDevice.SUJ1] = bool_list
             control_brakes(
-                is_brake_release_dict['SUJ1'], armSerialportDic['SUJ1'])
+                is_brake_release_dict[SujDevice.SUJ1], armSerialportDic['SUJ1'])
     else:
         rospy.logerr(
             "The brake_list command should contains 6 Boolean arguments")
@@ -446,13 +459,20 @@ def control_brakes_SUJ2_cb(msg):
     count = 0
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
+        # for i in range(6):
+        #     if(bool_list[i] == is_brake_release_dict[SujDevice.SUJ2][i]):
+        #         count = count + 1
+
+        # check if the current brake release list is the same as bool list
         for i in range(6):
-            if(bool_list[i] == is_brake_release_dict['SUJ2'][i]):
+            if(bool_list[i] != is_brake_release_dict[SujDevice.SUJ2][i]):
                 count = count + 1
+
+        # if action control is required
         if count != 0:
-            is_brake_release_dict['SUJ2'] = bool_list
+            is_brake_release_dict[SujDevice.SUJ2] = bool_list
             control_brakes(
-                is_brake_release_dict['SUJ2'], armSerialportDic['SUJ2'])
+                is_brake_release_dict[SujDevice.SUJ2], armSerialportDic['SUJ2'])
     else:
         rospy.logerr(
             "The brake_list command should contains 6 Boolean arguments")
@@ -466,12 +486,12 @@ def control_brakes_ECM_cb(msg):
     bool_list = msg.isBrakeList
     if len(bool_list) == 6:
         for i in range(6):
-            if(bool_list[i] == is_brake_release_dict['ECM'][i]):
+            if(bool_list[i] == is_brake_release_dict[SujDevice.ECM][i]):
                 count = count + 1
         if count != 0:
-            is_brake_release_dict['ECM'] = bool_list
+            is_brake_release_dict[SujDevice.ECM] = bool_list
             control_brakes(
-                is_brake_release_dict['ECM'], armSerialportDic['ECM'])
+                is_brake_release_dict[SujDevice.ECM], armSerialportDic['ECM'])
 
 
 if __name__ == '__main__':
@@ -507,15 +527,15 @@ if __name__ == '__main__':
     pub_dict['SUJ2'] = PSM2_suj_pub
     pub_dict['ECM'] = ECM_suj_pub
 
-    rate = rospy.Rate(100)
+    rate = rospy.Rate(10)
     is_success_print = True
     while not rospy.is_shutdown():
         try:
-            armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
-                ser1, ser2, ser3)
-            publish_joint_states(joint_pos_deg_dict['SUJ1'], pub_dict['SUJ1'])
-            publish_joint_states(joint_pos_deg_dict['SUJ2'], pub_dict['SUJ2'])
-            publish_joint_states(joint_pos_deg_dict['ECM'], pub_dict['ECM'])
+            # armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
+            #     ser1, ser2, ser3)
+            # publish_joint_states(joint_pos_deg_dict['SUJ1'], pub_dict['SUJ1'])
+            # publish_joint_states(joint_pos_deg_dict['SUJ2'], pub_dict['SUJ2'])
+            # publish_joint_states(joint_pos_deg_dict['ECM'], pub_dict['ECM'])
             rate.sleep()
             if is_success_print:
                 rospy.loginfo("dvrk_suj_publisher is running................")
