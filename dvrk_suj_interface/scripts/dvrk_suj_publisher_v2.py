@@ -14,14 +14,15 @@ from dvrk_suj_interface.msg import Bool_List
 
 from enum import Enum
 from pprint import pprint
+
+# multi processing support
 from threading import Lock
+import concurrent.futures
 
 # enable this if want to debug mutex message
 PRINT_MUTEX_DEBUG_MSG = True
-
-# TODO: changing to use python mutex instead
 mutex_timeout = 2 # 1s timeout for mutex accquiring
-serial_mutex = Lock()
+USING_THREADED_SERIAL = True
 
 class SujType(Enum):
     SUJ2 = 1
@@ -31,12 +32,18 @@ class SujType(Enum):
 full_range = int('FFFFFF', 16)
 pi = np.pi
 
-# global dictioanry
-serial_devices_list = {
-    serial.Serial('/dev/ttyUSB0', baudrate=115200, timeout=0.2),
-    serial.Serial('/dev/ttyUSB1', baudrate=115200, timeout=0.2),
-    serial.Serial('/dev/ttyUSB2', baudrate=115200, timeout=0.2)
-}
+# Serial Devices class that comes with a mutex lock
+class SerialDevice(serial.Serial):
+    def __init__(self, *args, **kwargs):
+        super(SerialDevice, self).__init__(*args, **kwargs)
+        self.lock = Lock()
+
+serial_devices_list = [
+    SerialDevice('/dev/ttyUSB0', baudrate=115200, timeout=0.2),
+    SerialDevice('/dev/ttyUSB1', baudrate=115200, timeout=0.2),
+    SerialDevice('/dev/ttyUSB2', baudrate=115200, timeout=0.2)
+]
+
 # initialize the dict of serial device in runtime
 serial_devices_dict = {}
 
@@ -110,7 +117,7 @@ reading_offset_dict = {
     ]
 }
 
-def get_suj_joint_reading(serial_port):
+def get_suj_joint_reading(ser):
     
     # initialize the return values
     readings = []
@@ -122,20 +129,20 @@ def get_suj_joint_reading(serial_port):
     suj_type = None
 
     # accquire the write lock
-    if not serial_mutex.acquire(timeout=mutex_timeout):
+    if not ser.lock.acquire(timeout=mutex_timeout):
         rospy.logerr("get_suj_joint_reading serial mutex accquiring timeout")
         return voltages, reading_list, valid_reading, suj_type
 
     try:
-        serial_port.write(b"AT+ADDRESS\r\n")
-        serial_port_address = serial_port.read_until().decode('utf-8')
+        ser.write(b"AT+ADDRESS\r\n")
+        serial_port_address = ser.read_until().decode('utf-8')
         address_num = int(serial_port_address[0], 16)
-        isGetAddressScuess = serial_port.read_until()
+        isGetAddressScuess = ser.read_until()
         if isGetAddressScuess == b"OK\r\n":
             #rospy.loginfo('Port Address Obtained Successfully')
             pass
         else:
-            serial_port.reset_input_buffer()
+            ser.reset_input_buffer()
             rospy.logerr('Failed to Get Port Address')
 
         if address_num == SujType.SUJ1.value:
@@ -147,15 +154,15 @@ def get_suj_joint_reading(serial_port):
         else:
             rospy.logerr('Failed to Get Port Address')
 
-        serial_port.write(b"AT+READALL\r\n")
+        ser.write(b"AT+READALL\r\n")
         for i in range(13):
-            readings.append(serial_port.read_until())
+            readings.append(ser.read_until())
             if i == 12:
                 if readings[i][-4:] == b"OK\r\n":
                     #rospy.loginfo('Reading Success.')
                     pass
                 else:
-                    serial_port.reset_input_buffer()
+                    ser.reset_input_buffer()
                     rospy.logerr("Reading Error.")
                     return [0, 0, False, 0]
 
@@ -182,7 +189,7 @@ def get_suj_joint_reading(serial_port):
             valid_reading = False
 
     finally:
-        serial_mutex.release()
+        ser.lock.release()
         return voltages, reading_list, valid_reading, suj_type
 
 
@@ -222,8 +229,7 @@ def dReading2degree(suj_type, d_reading):
 
 def release_brakes(ser):
     # accquire the serial lock
-
-    if not serial_mutex.acquire(timeout=mutex_timeout):
+    if not ser.lock.acquire(timeout=mutex_timeout):
         rospy.logerr("release_brakes serial mutex accquiring timeout")
         return False
 
@@ -238,7 +244,7 @@ def release_brakes(ser):
             ser.reset_input_buffer()
             rospy.logerr("All Brakes Release Failed.")
     finally:
-        serial_mutex.release()
+        ser.lock.release()
         return ret
 
 def release_brakes_single(joint_num, ser):
@@ -250,7 +256,7 @@ def release_brakes_single(joint_num, ser):
         return False
 
     # accquire the serial lock
-    if not serial_mutex.acquire(timeout=mutex_timeout):
+    if not ser.lock.acquire(timeout=mutex_timeout):
         rospy.logerr("release_brakes serial mutex accquiring timeout")
         return False
 
@@ -266,12 +272,12 @@ def release_brakes_single(joint_num, ser):
             ser.reset_input_buffer()
             rospy.loginfo("Fail to release joint brake: %d" % joint_num)
     finally:
-        serial_mutex.release()
+        ser.lock.release()
         return ret
 
 def lock_brakes(ser):
     # accquire the serial lock
-    if not serial_mutex.acquire(timeout=mutex_timeout):
+    if not ser.lock.acquire(timeout=mutex_timeout):
         rospy.logerr("release_brakes serial mutex accquiring timeout")
         return False
     try:
@@ -286,7 +292,7 @@ def lock_brakes(ser):
             ser.reset_input_buffer()
             rospy.logerr("All Brakes Lock Failed.")
     finally:
-        serial_mutex.release()
+        ser.lock.release()
         return ret
 
 def control_brakes(is_release_brake_list, ser):
@@ -327,18 +333,36 @@ def readAll():
     joint_pos_read_dict = {}
     joint_pos_deg_dict = {}
 
-    for ser in serial_devices_list:
-        joint_pos_read, joint_pos_deg, suj_type = readSerial(ser)
+    if USING_THREADED_SERIAL:
+        # concurrent version
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            future_list = []
+            for ser in serial_devices_list:
+                future_list.append(executor.submit(readSerial, ser))
+            
+            # get back the value
+            for ser, fut in zip(serial_devices_list, future_list):
+                joint_pos_read, joint_pos_deg, suj_type = fut.result()
 
-        # init the dict if not yet regiested this serial port
-        if suj_type not in serial_devices_dict:
-            serial_devices_dict[suj_type] = ser
+                # init the dict if not yet regiested this serial port
+                if suj_type not in serial_devices_dict:
+                    serial_devices_dict[suj_type] = ser
 
-        joint_pos_read_dict[suj_type] = joint_pos_read
-        joint_pos_deg_dict[suj_type] = joint_pos_deg
+                joint_pos_read_dict[suj_type] = joint_pos_read
+                joint_pos_deg_dict[suj_type] = joint_pos_deg
+    else:
+        # sequenctial execution of all the serial ports
+        for ser in serial_devices_list:
+            joint_pos_read, joint_pos_deg, suj_type = readSerial(ser)
+
+            # init the dict if not yet regiested this serial port
+            if suj_type not in serial_devices_dict:
+                serial_devices_dict[suj_type] = ser
+
+            joint_pos_read_dict[suj_type] = joint_pos_read
+            joint_pos_deg_dict[suj_type] = joint_pos_deg
 
     return joint_pos_read_dict, joint_pos_deg_dict
-
 
 def publish_joint_states(joint_states_list, pub):
     msg = JointState
@@ -391,8 +415,10 @@ if __name__ == '__main__':
     rospy.loginfo('Initiate serial reading objects')
     joint_pos_read_dict, joint_pos_deg_dict = readAll()
 
+    # debug
     pprint(joint_pos_read_dict)
     pprint(joint_pos_deg_dict)
+    pprint(serial_devices_dict)
 
     rospy.init_node('dvrk_suj_publisher', log_level=rospy.DEBUG,
                     anonymous=True, disable_signals=True)
@@ -431,6 +457,8 @@ if __name__ == '__main__':
                 rospy.loginfo("dvrk_suj_publisher is running................")
                 rospy.loginfo("close the program by ctrl+c")
                 is_success_print = False
+            
+            rate.sleep()
 
         except KeyboardInterrupt:
             #TODO never catch the KeyboardInterrupt
@@ -440,15 +468,12 @@ if __name__ == '__main__':
         except KeyError:
             rospy.logerr("Got KeyError")
             interrupted = True
-            
-        finally:
-            rate.sleep()
 
     rospy.loginfo('Auto Lock All Joints ......')
-    if serial_mutex.locked():
-        serial_mutex.release()
 
     for ser in serial_devices_list:
+        if ser.lock.locked():
+            ser.lock.release()
         lock_brakes(ser)
         ser.close()
     

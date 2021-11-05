@@ -84,6 +84,7 @@ reading_offset_ecm = [
 
 Read_Lock = False
 Write_Lock = False
+PRINT_LOCK_DEBUG_MSG = False
 
 # global dictionary variables
 armSerialportDic = {}  # serial obj
@@ -109,10 +110,11 @@ def get_suj_joint_reading(serial_port):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Write_Lock):
-        print("get_suj_joint_reading writelock blocking")
+        if PRINT_LOCK_DEBUG_MSG:
+            print("get_suj_joint_reading writelock blocking")
         pass
 
-    rospy.logdebug("get_suj_joint_reading Read_Lock accquired")
+    # rospy.logdebug("get_suj_joint_reading Read_Lock accquired")
     Read_Lock = True
 
     readings = []
@@ -172,7 +174,7 @@ def get_suj_joint_reading(serial_port):
     # rospy.loginfo(readings)
 
     # reset the Read Lock
-    rospy.logdebug("get_suj_joint_reading Read_Lock released")
+    # rospy.logdebug("get_suj_joint_reading Read_Lock released")
     Read_Lock = False
 
     return voltages, reading_list, valid_reading, arm
@@ -240,7 +242,8 @@ def release_brakes(ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
-        print("release_brakes readlock blocking")
+        if PRINT_LOCK_DEBUG_MSG:
+            print("release_brakes readlock blocking")
         pass
     Write_Lock = True
     ser.write(b"AT+FREEALL\r\n")
@@ -259,7 +262,8 @@ def release_brakes_single(joint_num, ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
-        rospy.loginfo("release_brakes_single readlock blocking")
+        if PRINT_LOCK_DEBUG_MSG:
+            rospy.loginfo("release_brakes_single readlock blocking")
         pass
     Write_Lock = True
 
@@ -305,7 +309,8 @@ def lock_brakes_single(joint_num, ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
-        print("lock_brakes_single readlock blocking")
+        if PRINT_LOCK_DEBUG_MSG:
+            print("lock_brakes_single readlock blocking")
         pass
     Write_Lock = True
 
@@ -331,7 +336,8 @@ def lock_brakes(ser):
     global Read_Lock
     # block the code when Read_Lock is true
     while(Read_Lock):
-        print("lock_brakes Read_Lock blocking")
+        if PRINT_LOCK_DEBUG_MSG:
+            print("lock_brakes Read_Lock blocking")
         pass
     Write_Lock = True
     ser.write(b"AT+LOCKALL\r\n")
@@ -527,15 +533,15 @@ if __name__ == '__main__':
     pub_dict['SUJ2'] = PSM2_suj_pub
     pub_dict['ECM'] = ECM_suj_pub
 
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(100)
     is_success_print = True
     while not rospy.is_shutdown():
         try:
-            # armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
-            #     ser1, ser2, ser3)
-            # publish_joint_states(joint_pos_deg_dict['SUJ1'], pub_dict['SUJ1'])
-            # publish_joint_states(joint_pos_deg_dict['SUJ2'], pub_dict['SUJ2'])
-            # publish_joint_states(joint_pos_deg_dict['ECM'], pub_dict['ECM'])
+            armSerialportDic, joint_pos_read_dict, joint_pos_deg_dict = readAll(
+                ser1, ser2, ser3)
+            publish_joint_states(joint_pos_deg_dict['SUJ1'], pub_dict['SUJ1'])
+            publish_joint_states(joint_pos_deg_dict['SUJ2'], pub_dict['SUJ2'])
+            publish_joint_states(joint_pos_deg_dict['ECM'], pub_dict['ECM'])
             rate.sleep()
             if is_success_print:
                 rospy.loginfo("dvrk_suj_publisher is running................")
