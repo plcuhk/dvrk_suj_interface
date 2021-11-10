@@ -8,7 +8,7 @@ import time
 import numpy as np
 import copy
 import rospy
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Joy
 from std_msgs.msg import Header
 from dvrk_suj_interface.msg import Bool_List
 
@@ -21,22 +21,27 @@ import concurrent.futures
 
 # enable this if want to debug mutex message
 PRINT_MUTEX_DEBUG_MSG = True
-mutex_timeout = 2 # 1s timeout for mutex accquiring
+mutex_timeout = 2  # 1s timeout for mutex accquiring
 USING_THREADED_SERIAL = True
+
 
 class SujType(Enum):
     SUJ2 = 1
     ECM = 2
     SUJ1 = 3
 
+
 full_range = int('FFFFFF', 16)
 pi = np.pi
 
 # Serial Devices class that comes with a mutex lock
+
+
 class SerialDevice(serial.Serial):
     def __init__(self, *args, **kwargs):
         super(SerialDevice, self).__init__(*args, **kwargs)
         self.lock = Lock()
+
 
 serial_devices_list = [
     SerialDevice('/dev/ttyUSB0', baudrate=115200, timeout=0.2),
@@ -117,8 +122,9 @@ reading_offset_dict = {
     ]
 }
 
+
 def get_suj_joint_reading(ser):
-    
+
     # initialize the return values
     readings = []
     POT_sum = 0
@@ -166,7 +172,6 @@ def get_suj_joint_reading(ser):
                     rospy.logerr("Reading Error.")
                     return [0, 0, False, 0]
 
-
         # rospy.loginfo(readings)
         for reading_ in readings[:-1]:
             reading_ = reading_.decode('utf-8')
@@ -206,7 +211,7 @@ def dReading2degree(suj_type, d_reading):
     ratio_list = reading_ratios_dict[suj_type]
     bias_list = reading_offset_dict[suj_type]
     pot_condition = pot_condition_dict[suj_type]
-    
+
     for joint_ in range(6):
         if (pot_condition[joint_]+pot_condition[joint_+6]) == 2:
             joint_pos_read[joint_] += (d_reading[joint_] * pot_condition[joint_] +
@@ -247,9 +252,10 @@ def release_brakes(ser):
         ser.lock.release()
         return ret
 
+
 def release_brakes_single(joint_num, ser):
     rospy.logdebug("release_brakes_single Joint no.: %d" % joint_num)
-    
+
     # validate joint number
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         rospy.logerr("Error: joint index out of range [1, 2, 3, 4, 5, 6].")
@@ -275,6 +281,7 @@ def release_brakes_single(joint_num, ser):
         ser.lock.release()
         return ret
 
+
 def lock_brakes(ser):
     # accquire the serial lock
     if not ser.lock.acquire(timeout=mutex_timeout):
@@ -295,6 +302,7 @@ def lock_brakes(ser):
         ser.lock.release()
         return ret
 
+
 def control_brakes(is_release_brake_list, ser):
     rospy.logdebug("control_brakes")
     pprint(is_release_brake_list)
@@ -313,6 +321,7 @@ def control_brakes(is_release_brake_list, ser):
             ret = ret and release_brakes_single(i+1, ser)
     return ret
 
+
 def readSerial(ser):
     isValid = False
     suj_type = None
@@ -321,11 +330,12 @@ def readSerial(ser):
         # d_reading1~3 are the original digital readings
         [v_reading, d_reading, isValid, suj_type] = get_suj_joint_reading(ser)
 
-    joint_pos_read, joint_pos_deg= [], []
+    joint_pos_read, joint_pos_deg = [], []
 
     if isValid:
         joint_pos_read, joint_pos_deg = dReading2degree(suj_type, d_reading)
     return joint_pos_read, joint_pos_deg, suj_type
+
 
 def readAll():
     global serial_devices_dict
@@ -339,7 +349,7 @@ def readAll():
             future_list = []
             for ser in serial_devices_list:
                 future_list.append(executor.submit(readSerial, ser))
-            
+
             # get back the value
             for ser, fut in zip(serial_devices_list, future_list):
                 joint_pos_read, joint_pos_deg, suj_type = fut.result()
@@ -364,8 +374,8 @@ def readAll():
 
     return joint_pos_read_dict, joint_pos_deg_dict
 
+
 def publish_joint_states(joint_states_list, pub):
-    msg = JointState
     msg = JointState()
     msg.header = Header()
     msg.header.stamp = rospy.Time.now()
@@ -373,28 +383,35 @@ def publish_joint_states(joint_states_list, pub):
     msg.position = joint_states_list
     pub.publish(msg)
 
-def _control_brakes_callback(suj_type, cmd_list):
+
+def control_brakes_list(suj_type, cmd_list):
     global is_brake_release_dict
-    rospy.logdebug("_control_brakes_callback suj_type: %d" % suj_type.value)
+    rospy.logdebug("control_brakes suj_type: {} {}".format(
+        suj_type.value, cmd_list))
 
     # validate the serial devices dict is initialized
     if suj_type not in serial_devices_dict:
-        rospy.logerr("Error: serial devices dict is not initialized or the suj type not found in the serial devices dict")
+        rospy.logerr(
+            "Error: serial devices dict is not initialized or the suj type not found in the serial devices dict")
         return False
 
     # validate the input
     if len(cmd_list) != 6:
-        rospy.logerr("The brake_list command should contains 6 Boolean arguments")
+        rospy.logerr(
+            "The brake_list command should contains 6 Boolean arguments")
         return False
-    
+
     # debug
-    pprint("cmd_list {}".format(cmd_list))
-    pprint("is_brake_release_dict[suj_type] {}".format(is_brake_release_dict[suj_type]))
+    # pprint("cmd_list {}".format(cmd_list))
+    # pprint("is_brake_release_dict[suj_type] {}".format(
+    #     is_brake_release_dict[suj_type]))
 
     # if action control is required
     if cmd_list != is_brake_release_dict[suj_type]:
-        is_brake_release_dict[suj_type] = cmd_list # update the brake release status
-        ret = control_brakes(is_brake_release_dict[suj_type], serial_devices_dict[suj_type])
+        # update the brake release status
+        is_brake_release_dict[suj_type] = cmd_list
+        ret = control_brakes(
+            is_brake_release_dict[suj_type], serial_devices_dict[suj_type])
         # TODO: handle cases when not all the brakes are released
 
         return ret
@@ -402,14 +419,22 @@ def _control_brakes_callback(suj_type, cmd_list):
         # no action required as the current status is the same as the input
         return True
 
-def control_brakes_SUJ1_cb(msg):
-    _control_brakes_callback(SujType.SUJ1, msg.isBrakeList)
 
-def control_brakes_SUJ2_cb(msg):
-    _control_brakes_callback(SujType.SUJ2, msg.isBrakeList)
+def control_brakes_callback(msg, suj_type):
+    control_brakes_list(suj_type, msg.isBrakeList)
 
-def control_brakes_ECM_cb(msg):
-    _control_brakes_callback(SujType.ECM, msg.isBrakeList)
+
+def suj_clutch_buttons_callback(msg, suj_type):
+    rospy.logdebug("suj_clutch_buttons_callback suj_type: %d" % suj_type.value)
+
+    if msg.buttons[0] == 1:
+        control_brakes_list(suj_type, [True, True, True, True, True, True])
+    elif msg.buttons[0] == 0:
+        control_brakes_list(
+            suj_type, [False, False, False, False, False, False])
+    else:
+        rospy.logerr("unable to extract clutch buttons information")
+
 
 if __name__ == '__main__':
     rospy.loginfo('Initiate serial reading objects')
@@ -423,24 +448,31 @@ if __name__ == '__main__':
     rospy.init_node('dvrk_suj_publisher', log_level=rospy.DEBUG,
                     anonymous=True, disable_signals=True)
 
-    PSM1_suj_pub = rospy.Publisher(
-        '/dvrk/SUJ/PSM1/set_position_joint', JointState, queue_size=10)
-    PSM2_suj_pub = rospy.Publisher(
-        '/dvrk/SUJ/PSM2/set_position_joint', JointState, queue_size=10)
-    ECM_suj_pub = rospy.Publisher(
-        '/dvrk/SUJ/ECM/set_position_joint', JointState, queue_size=10)
+    # setup brake_control callback
+    rospy.Subscriber("/SUJ/PSM1/brake_control",
+                     Bool_List, control_brakes_callback, callback_args=SujType.SUJ1)
+    rospy.Subscriber("/SUJ/PSM2/brake_control",
+                     Bool_List, control_brakes_callback, callback_args=SujType.SUJ2)
+    rospy.Subscriber("/SUJ/ECM/brake_control",
+                     Bool_List, control_brakes_callback, callback_args=SujType.ECM)
 
-    rospy.Subscriber("/dvrk/SUJ/PSM1/brake_control",
-                     Bool_List, control_brakes_SUJ1_cb)
-    rospy.Subscriber("/dvrk/SUJ/PSM2/brake_control",
-                     Bool_List, control_brakes_SUJ2_cb)
-    rospy.Subscriber("/dvrk/SUJ/ECM/brake_control",
-                     Bool_List, control_brakes_ECM_cb)
+    # setup suj_clutch_buttons callback
+    rospy.Subscriber("/PSM1/io/suj_clutch",
+                     Joy, suj_clutch_buttons_callback, callback_args=SujType.SUJ1)
+    rospy.Subscriber("/PSM2/io/suj_clutch",
+                     Joy, suj_clutch_buttons_callback, callback_args=SujType.SUJ2)
+    rospy.Subscriber("/ECM/io/suj_clutch",
+                     Joy, suj_clutch_buttons_callback, callback_args=SujType.ECM)
 
-    pub_dict = {}  # ros publisher objects
-    pub_dict[SujType.SUJ1] = PSM1_suj_pub
-    pub_dict[SujType.SUJ2] = PSM2_suj_pub
-    pub_dict[SujType.ECM] = ECM_suj_pub
+    # ros publisher objects
+    pub_dict = {
+        SujType.SUJ1: rospy.Publisher(
+            '/SUJ/PSM1/measured_js', JointState,  queue_size=10),
+        SujType.SUJ2: rospy.Publisher(
+            '/SUJ/PSM2/measured_js', JointState, queue_size=10),
+        SujType.ECM: rospy.Publisher(
+            '/SUJ/ECM/measured_js', JointState, queue_size=10),
+    }
 
     rate = rospy.Rate(100)
     is_success_print = True
@@ -449,22 +481,25 @@ if __name__ == '__main__':
     while not rospy.is_shutdown() and not interrupted:
         try:
             joint_pos_read_dict, joint_pos_deg_dict = readAll()
-            publish_joint_states(joint_pos_deg_dict[SujType.SUJ1], pub_dict[SujType.SUJ1])
-            publish_joint_states(joint_pos_deg_dict[SujType.SUJ2], pub_dict[SujType.SUJ2])
-            publish_joint_states(joint_pos_deg_dict[SujType.ECM], pub_dict[SujType.ECM])
+            publish_joint_states(
+                joint_pos_deg_dict[SujType.SUJ1], pub_dict[SujType.SUJ1])
+            publish_joint_states(
+                joint_pos_deg_dict[SujType.SUJ2], pub_dict[SujType.SUJ2])
+            publish_joint_states(
+                joint_pos_deg_dict[SujType.ECM], pub_dict[SujType.ECM])
 
             if is_success_print:
                 rospy.loginfo("dvrk_suj_publisher is running................")
                 rospy.loginfo("close the program by ctrl+c")
                 is_success_print = False
-            
+
             rate.sleep()
 
         except KeyboardInterrupt:
-            #TODO never catch the KeyboardInterrupt
+            # TODO never catch the KeyboardInterrupt
             rospy.loginfo("Got KeyboardInterrupt")
             interrupted = True
-        
+
         except KeyError:
             rospy.logerr("Got KeyError")
             interrupted = True
@@ -476,6 +511,6 @@ if __name__ == '__main__':
             ser.lock.release()
         lock_brakes(ser)
         ser.close()
-    
+
     rospy.loginfo('Lock Successfully')
     rospy.loginfo('exit program')
