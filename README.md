@@ -35,7 +35,7 @@ roscore
 ```
 oepen another terminal, type
 ```sh
-rosrun dvrk_suj_interface dvrk_suj_publisher.py
+rosrun dvrk_suj_interface dvrk_suj_publisher_v2.py
 ```
 
 
