@@ -41,6 +41,7 @@ class SerialDevice(serial.Serial):
     def __init__(self, *args, **kwargs):
         super(SerialDevice, self).__init__(*args, **kwargs)
         self.lock = Lock()
+        self.suj_type = None
 
 
 serial_devices_list = [
@@ -145,7 +146,7 @@ def get_suj_joint_reading(ser):
         address_num = int(serial_port_address[0], 16)
         isGetAddressScuess = ser.read_until()
         if isGetAddressScuess == b"OK\r\n":
-            #rospy.loginfo('Port Address Obtained Successfully')
+            # rospy.loginfo('Port Address Obtained Successfully')
             pass
         else:
             ser.reset_input_buffer()
@@ -165,7 +166,7 @@ def get_suj_joint_reading(ser):
             readings.append(ser.read_until())
             if i == 12:
                 if readings[i][-4:] == b"OK\r\n":
-                    #rospy.loginfo('Reading Success.')
+                    # rospy.loginfo('Reading Success.')
                     pass
                 else:
                     ser.reset_input_buffer()
@@ -254,8 +255,6 @@ def release_brakes(ser):
 
 
 def release_brakes_single(joint_num, ser):
-    rospy.logdebug("release_brakes_single Joint no.: %d" % joint_num)
-
     # validate joint number
     if joint_num not in [1, 2, 3, 4, 5, 6]:
         rospy.logerr("Error: joint index out of range [1, 2, 3, 4, 5, 6].")
@@ -272,11 +271,13 @@ def release_brakes_single(joint_num, ser):
         respond = ser.read_until()
 
         if respond == b"OK\r\n":
-            rospy.loginfo("Succeed to release joint brake: %d" % joint_num)
+            rospy.loginfo("Succeed to release brake in SJU type {} Joint no.: {}".format(
+                ser.suj_type, joint_num))
             ret = True
         else:
             ser.reset_input_buffer()
-            rospy.loginfo("Fail to release joint brake: %d" % joint_num)
+            rospy.loginfo("Faialed to release brake in SJU type {} Joint no.: {}".format(
+                ser.suj_type, joint_num))
     finally:
         ser.lock.release()
         return ret
@@ -357,6 +358,7 @@ def readAll():
                 # init the dict if not yet regiested this serial port
                 if suj_type not in serial_devices_dict:
                     serial_devices_dict[suj_type] = ser
+                    ser.suj_type = suj_type
 
                 joint_pos_read_dict[suj_type] = joint_pos_read
                 joint_pos_deg_dict[suj_type] = joint_pos_deg
